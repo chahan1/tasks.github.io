@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "請改成 PWABuilder 的 Package ID，例如 io.github.您的帳號.worklog",
+      "sha256_cert_fingerprints": [
+        "請貼上 PWABuilder 產生的 SHA-256 指紋"
+      ]
+    }
+  }
+]
