@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="description" content="可語音輸入、三層任務、拖曳排序與時間記錄的每日工作記錄表。">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="工作記錄">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <title>每日工作記錄表 v2.2</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        :root { --blue: #1a73e8; --blue-light: #e8f0fe; --blue-line: #d2e3fc; --sub: #3c4043; --line: #eef0f2; --muted: #8a9096; --text: #2b2f33; }
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', Helvetica, Arial, sans-serif;
+            max-width: 680px; margin: 0 auto; padding: 0 10px 64px 10px;
+            background-color: #f5f7f8; color: var(--text); -webkit-tap-highlight-color: transparent;
+            font-size: 13px;
+        }
+        svg.ic { width: 16px; height: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+        /* ---- 頂部列（固定） ---- */
+        .sticky-top-bar { position: sticky; top: 0; z-index: 100; background-color: #f5f7f8; padding-top: 8px; padding-bottom: 8px; }
+        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .header-container h2 { margin: 0; color: var(--blue); font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px; }
+        .version-tag { font-size: 9px; background: var(--blue-light); color: var(--blue); padding: 1px 4px; border-radius: 3px; font-weight: 600; letter-spacing: 0; }
+        .today-stat { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+
+        .menu-wrapper { position: relative; }
+        .three-dots-btn { background: transparent; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #5f6368; }
+        .three-dots-btn:active, .three-dots-btn:hover { background: #e8eaed; }
+        .dropdown-menu { display: none; position: absolute; right: 0; top: 34px; background: white; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.14); width: 176px; padding: 4px 0; z-index: 200; }
+        .dropdown-menu.show { display: block; }
+        .dropdown-item { padding: 9px 14px; font-size: 13px; color: #3c4043; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .dropdown-item:active, .dropdown-item:hover { background-color: var(--blue-light); color: var(--blue); }
+        .dropdown-divider { height: 1px; background: var(--line); margin: 4px 0; }
+
+        .input-group { display: flex; gap: 6px; align-items: center; }
+        input[type="text"] { flex: 1; min-width: 0; height: 34px; padding: 0 12px; border: 1px solid #e0e3e6; border-radius: 17px; font-size: 13.5px; background: white; outline: none; color: var(--text); }
+        input[type="text"]::placeholder { color: #a8adb2; }
+        input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(26,115,232,0.12); }
+        .btn-primary { height: 34px; padding: 0 14px; background-color: var(--blue); color: white; border: none; border-radius: 17px; cursor: pointer; font-weight: 600; font-size: 13px; flex-shrink: 0; }
+        .btn-add-main { width: 34px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .btn-add-main svg.ic { width: 17px; height: 17px; stroke-width: 2.4; }
+        .btn-outline { padding: 7px 14px; background: transparent; border: 1px solid #dadce0; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text); }
+        .btn-voice { width: 34px; height: 34px; padding: 0; background-color: white; color: #4285f4; border: 1px solid #e0e3e6; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .btn-voice svg.ic { width: 17px; height: 17px; }
+        .btn-voice.listening { background-color: #d93025; border-color: #d93025; color: white; animation: blink 1s infinite; }
+        #voiceStatus { width: 100%; font-size: 11.5px; color: #d93025; margin-top: 4px; display: none; }
+
+        /* ---- 卡片與列 ---- */
+        .task-card { background: white; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 8px; padding: 2px 6px 4px 2px; }
+        .task-row { display: flex; align-items: center; gap: 3px; padding: 3px 0; background: white; min-height: 30px; }
+        .main-row { padding: 5px 0; }
+
+        .subtask-container { margin-left: 12px; border-left: 1.5px solid var(--blue-line); padding-left: 1px; min-height: 2px; }
+        .grandtask-container { margin-left: 28px; border-left: 1.5px dotted #dadce0; padding-left: 0; min-height: 0; }
+        .subtask-container:empty { border-left-color: transparent; }
+        .subtask-item { background: white; }
+        .subtask-item + .subtask-item { border-top: 1px solid var(--line); }
+        .collapsed { display: none !important; }
+
+        .toggle-icon { cursor: pointer; font-size: 8px; color: #b0b5ba; width: 14px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; user-select: none; }
+        .toggle-icon:hover { color: var(--blue); }
+        .toggle-placeholder { width: 14px; flex-shrink: 0; }
+        .drag-handle { cursor: grab; font-size: 10px; color: #d5d9dd; width: 12px; text-align: center; touch-action: none; flex-shrink: 0; user-select: none; }
+        .drag-handle:active { cursor: grabbing; color: var(--blue); }
+        input[type="checkbox"] { width: 15px; height: 15px; margin: 0 3px 0 1px; cursor: pointer; accent-color: var(--blue); flex-shrink: 0; }
+
+        .main-task-text { font-size: 14px; font-weight: 700; color: var(--blue); }
+        .sub-task-text { font-size: 13.5px; font-weight: 600; color: var(--sub); }
+        .grand-task-text { font-size: 12.5px; font-weight: 400; color: var(--text); line-height: 1.45; }
+        .task-text { flex: 1; min-width: 0; word-break: break-word; line-height: 1.35; cursor: pointer; padding: 1px 2px; }
+        .completed { text-decoration: line-through; color: #a8adb2 !important; font-weight: normal !important; }
+        .progress-tag { display: inline-block; font-size: 10px; font-weight: 500; color: var(--muted); background: #f1f3f4; padding: 0 6px; border-radius: 8px; margin-left: 4px; vertical-align: 1px; text-decoration: none; }
+        .progress-tag.done { color: #188038; background: #e6f4ea; }
+
+        /* ---- 右側小按鈕 ---- */
+        .row-actions { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+        .action-btn { background: transparent; border: none; cursor: pointer; width: 26px; height: 26px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #9aa0a6; }
+        .action-btn:active, .action-btn:hover { background: var(--blue-light); color: var(--blue); }
+        .btn-add-sub { color: var(--blue); background: var(--blue-light); width: 24px; height: 24px; margin-left: 2px; }
+        .btn-add-sub svg.ic { width: 14px; height: 14px; stroke-width: 2.2; }
+        .btn-add-sub.small { width: 22px; height: 22px; background: transparent; border: 1px solid var(--blue-line); }
+        .btn-add-sub.small svg.ic { width: 12px; height: 12px; }
+        .btn-delete { color: #e06055; }
+
+        .btn-edit, .btn-delete { display: none !important; }
+        body.edit-mode .btn-edit, body.edit-mode .btn-delete { display: flex !important; }
+        body.edit-mode .task-card { box-shadow: 0 0 0 1px var(--blue-line); }
+        body.hide-completed .completed-card, body.hide-completed .completed-sub, body.hide-completed .completed-grand { display: none !important; }
+
+        .time-badge { display: none; font-size: 9.5px; color: var(--muted); font-weight: 400; margin-top: 1px; white-space: nowrap; }
+        body.show-time .time-badge { display: inline-block !important; width: 100%; text-decoration: none; }
+
+        /* ---- 備份提醒 ---- */
+        .backup-banner { display: none; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 8px 6px 12px; background: #fff8e1; border: 1px solid #fde7a9; border-radius: 10px; font-size: 12px; color: #7a5b00; }
+        .backup-banner.show { display: flex; }
+        .backup-banner span { flex: 1; min-width: 0; }
+        .bb-btn { border: none; background: transparent; color: #7a5b00; font-size: 12px; padding: 5px 8px; border-radius: 12px; cursor: pointer; flex-shrink: 0; }
+        .bb-btn.primary { background: var(--blue); color: white; font-weight: 600; }
+
+        /* ---- 編輯模式提示列 ---- */
+        .edit-bar { display: none; align-items: center; justify-content: space-between; margin-top: 8px; padding: 5px 8px 5px 12px; background: var(--blue-light); border-radius: 10px; font-size: 12px; color: var(--blue); }
+        body.edit-mode .edit-bar { display: flex; }
+
+        .toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: rgba(32,33,36,0.92); color: white; font-size: 12.5px; padding: 8px 14px; border-radius: 18px; z-index: 2000; opacity: 0; transition: opacity 0.25s; pointer-events: none; max-width: 90%; text-align: center; white-space: pre-line; }
+        .toast.show { opacity: 1; }
+        .empty-hint { text-align: center; color: var(--muted); font-size: 12.5px; padding: 40px 0; line-height: 1.7; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.45); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 14px; border-radius: 12px; width: 92%; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .modal-content h3 { margin: 0 0 4px 0; font-size: 15px; }
+        .modal-hint { font-size: 12px; color: #80868b; line-height: 1.5; }
+        .modal-content textarea { width: 100%; height: 150px; margin: 8px 0; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; font-size: 11px; }
+        /* ---- 新增次任務 / 孫任務：語音聆聽視窗 ---- */
+        .listen-modal { max-width: 320px; text-align: center; padding: 16px 14px 14px; }
+        .lm-title { font-size: 13px; color: var(--muted); }
+        .lm-parent { font-size: 14px; font-weight: 600; color: var(--sub); margin-top: 2px; word-break: break-word; }
+        .lm-mic { width: 64px; height: 64px; margin: 16px auto 8px; border-radius: 50%; border: none; background: #d93025; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 0 rgba(217,48,37,0.45); animation: pulse 1.4s infinite; }
+        .lm-mic svg.ic { width: 28px; height: 28px; }
+        .lm-status { font-size: 12.5px; color: #d93025; min-height: 18px; }
+        .lm-actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(217,48,37,0.45); } 70% { box-shadow: 0 0 0 14px rgba(217,48,37,0); } 100% { box-shadow: 0 0 0 0 rgba(217,48,37,0); } }
+
+        @keyframes blink { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+        @media (min-width: 600px) {
+            body { padding: 0 16px 64px 16px; font-size: 14px; }
+            .header-container h2 { font-size: 17px; }
+            .main-task-text { font-size: 15px; } .sub-task-text { font-size: 14.5px; } .grand-task-text { font-size: 13.5px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sticky-top-bar">
+        <div class="header-container">
+            <h2>📋 每日工作記錄表 <span class="version-tag">v2.2</span><span class="today-stat" id="todayStat"></span></h2>
+            <div class="menu-wrapper">
+                <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <div class="dropdown-item" id="itemEditMode" onclick="toggleEditMode()">⚙️ <span>開啟修改</span></div>
+                    <div class="dropdown-item" id="itemCompleted" onclick="toggleCompleted()">👁️ <span>隱藏已完成</span></div>
+                    <div class="dropdown-item" id="itemTime" onclick="toggleTime()">🕒 <span>顯示時間</span></div>
+                    <div class="dropdown-item" onclick="setAllCollapsed(true)">🗂️ <span>全部收合</span></div>
+                    <div class="dropdown-item" onclick="setAllCollapsed(false)">📂 <span>全部展開</span></div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item" onclick="downloadBackup()">📥 <span>下載備份檔</span></div>
+                    <div class="dropdown-item" onclick="document.getElementById('importFile').click()">📤 <span>從備份檔還原</span></div>
+                    <div class="dropdown-item" onclick="openTextModal('export')">📋 <span>複製備份文字</span></div>
+                    <div class="dropdown-item" onclick="openTextModal('import')">📝 <span>貼上文字還原</span></div>
+                </div>
+                <input type="file" id="importFile" accept=".json,application/json,text/plain,*/*" style="display: none;" onchange="importData(event)">
+            </div>
+        </div>
+        <div class="input-group">
+            <input type="text" id="mainTaskInput" placeholder="新增主要任務…" onkeydown="if(event.key==='Enter' && !event.isComposing) addMainTask()">
+            <button class="btn-voice" id="micButton" title="語音新增任務"><svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+            <button class="btn-primary btn-add-main" title="新增任務" onclick="addMainTask()"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        </div>
+        <div id="voiceStatus"></div>
+        <div class="edit-bar"><span>✏️ 修改模式：可編輯、刪除任務</span><button class="bb-btn primary" onclick="toggleEditMode()">完成</button></div>
+        <div id="backupBanner" class="backup-banner">
+            <span id="backupBannerText">好一陣子沒備份了</span>
+            <button class="bb-btn primary" onclick="downloadBackup()">立即備份</button>
+            <button class="bb-btn" onclick="snoozeBackup()">稍後</button>
+        </div>
+    </div>
+
+    <div id="taskList"></div>
+
+    <!-- 新增次任務 / 孫任務：按 ➕ 直接開始語音 -->
+    <div id="listenModal" class="modal-overlay" onclick="if(event.target===this) cancelListen()">
+        <div class="modal-content listen-modal">
+            <div class="lm-title" id="lmTitle">新增次任務到</div>
+            <div class="lm-parent" id="lmParent"></div>
+            <button class="lm-mic" title="說完了" onclick="stopListen()"><svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+            <div class="lm-status">🎤 請說出任務內容…</div>
+            <div class="lm-actions">
+                <button class="btn-outline" onclick="switchToKeyboard()">✏️ 改用鍵盤</button>
+                <button class="btn-outline" onclick="cancelListen()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="textModal" class="modal-overlay" onclick="if(event.target===this) closeTextModal()">
+        <div class="modal-content">
+            <h3 id="tmTitle">📋 備份文字</h3>
+            <div class="modal-hint" id="tmHint"></div>
+            <textarea id="tmTextarea"></textarea>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn-primary" id="tmAction"></button>
+                <button class="btn-outline" onclick="closeTextModal()">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---- 線條圖示 ----
+        const ICON = {
+            plus:  '<svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+            edit:  '<svg class="ic" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>',
+            trash: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>'
+        };
+
+        // ---- 資料讀取（沿用 v1.8 的儲存位置，舊資料不會遺失） ----
+        const STORAGE_KEY = 'dragWorkTasks_v1.8';
+        function safeLoad(key) {
+            try { const v = JSON.parse(localStorage.getItem(key)); return Array.isArray(v) ? v : null; }
+            catch (e) { return null; }
+        }
+        // 補齊資料結構，舊版資料（沒有時間、沒有孫任務）也能正常顯示
+        function normalizeTasks(list) {
+            return list.filter(t => t && typeof t === 'object').map(t => {
+                t.text = String(t.text ?? '');
+                t.subtasks = Array.isArray(t.subtasks) ? t.subtasks : [];
+                if (!t.createdAt) t.createdAt = typeof t.id === 'number' ? t.id : Date.now();
+                t.subtasks = t.subtasks.filter(s => s && typeof s === 'object');
+                t.subtasks.forEach(s => {
+                    s.text = String(s.text ?? '');
+                    s.grandtasks = Array.isArray(s.grandtasks) ? s.grandtasks.filter(g => g && typeof g === 'object') : [];
+                    if (!s.createdAt) s.createdAt = typeof s.id === 'number' ? s.id : Date.now();
+                    s.grandtasks.forEach(g => { g.text = String(g.text ?? ''); if (!g.createdAt) g.createdAt = typeof g.id === 'number' ? g.id : Date.now(); });
+                });
+                return t;
+            });
+        }
+        let tasks = normalizeTasks(safeLoad(STORAGE_KEY) || safeLoad('dragWorkTasks_v4') || []);
+
+        // 不重複的 ID（Date.now() 在連續新增時可能重複）
+        let lastId = 0;
+        function newId() { let id = Date.now(); if (id <= lastId) id = lastId + 1; lastId = id; return id; }
+        // 現有資料若有重複 ID，重新編號
+        (function dedupeIds() {
+            const seen = new Set();
+            const fix = o => { if (typeof o.id !== 'number' || seen.has(o.id)) o.id = newId(); seen.add(o.id); lastId = Math.max(lastId, o.id); };
+            tasks.forEach(t => { fix(t); t.subtasks.forEach(s => { fix(s); s.grandtasks.forEach(fix); }); });
+        })();
+
+        let sortableInstances = [];
+        let isHideCompleted = localStorage.getItem('hideCompletedState') === 'true';
+        let isShowTime = localStorage.getItem('showTimeState') === 'true';
+        let isEditMode = false;
+
+        // 跳脫 HTML，避免任務文字含 < > & 時畫面壞掉
+        function escapeHtml(str) { return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        function findMain(id) { return tasks.find(t => t.id === id); }
+        function findSub(mainId, subId) { const m = findMain(mainId); return m ? m.subtasks.find(s => s.id === subId) : null; }
+        function getTarget(id, level, parentId, grandParentId) {
+            if (level === 'main') return findMain(id);
+            if (level === 'sub') return findSub(parentId, id);
+            if (level === 'grand') { const p = findSub(grandParentId, parentId); return p ? p.grandtasks.find(g => g.id === id) : null; }
+            return null;
+        }
+
+        // ---- 語音輸入（中文） ----
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const micButton = document.getElementById('micButton');
+        const voiceStatus = document.getElementById('voiceStatus');
+        function showVoiceStatus(msg, color, hideAfter) {
+            voiceStatus.style.display = 'block';
+            voiceStatus.style.color = color || '#1a73e8';
+            voiceStatus.innerText = msg;
+            clearTimeout(voiceStatus._t);
+            if (hideAfter) voiceStatus._t = setTimeout(() => { voiceStatus.style.display = 'none'; }, hideAfter);
+        }
+        if (!SpeechRecognition) {
+            micButton.style.display = 'none';
+        } else {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'zh-TW';
+            recognition.interimResults = false;
+            recognition.continuous = false;
+            let isListening = false, gotResult = false;
+
+            micButton.addEventListener('click', () => {
+                if (isListening) { recognition.stop(); return; }   // 再按一次停止
+                try {
+                    gotResult = false;
+                    recognition.start();
+                    isListening = true;
+                    micButton.classList.add('listening');
+                    showVoiceStatus('🎤 聆聽中…請說出任務（再按一次停止）');
+                } catch (e) { showVoiceStatus('語音啟動失敗，請稍後再試', '#d93025', 3000); }
+            });
+            recognition.onresult = (event) => {
+                gotResult = true;
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('mainTaskInput').value = transcript;
+                showVoiceStatus(`辨識完成：${transcript}`, '#1a73e8', 2000);
+                addMainTask();
+            };
+            recognition.onerror = (event) => {
+                gotResult = true;
+                const msg = event.error === 'not-allowed' ? '沒有麥克風權限（需在 https 網址下使用並允許麥克風）'
+                          : event.error === 'no-speech' ? '沒有聽到聲音，請再試一次' : event.error;
+                showVoiceStatus(`語音錯誤：${msg}`, '#d93025', 3000);
+            };
+            recognition.onend = () => {
+                isListening = false;
+                micButton.classList.remove('listening');
+                if (!gotResult) showVoiceStatus('沒有聽到內容，請再試一次', '#d93025', 2500);
+            };
+        }
+
+        // 一次性語音辨識（次任務 / 孫任務用），回傳 Promise
+        let activeRec = null;
+        function listenOnce(lang = 'zh-TW') {
+            return new Promise((resolve, reject) => {
+                const rec = new SpeechRecognition();
+                rec.lang = lang; rec.interimResults = false; rec.continuous = false;
+                let done = false;
+                // 先綁定事件再 start；沒說話就結束時也要結束 Promise
+                rec.onresult = e => { done = true; resolve(e.results[0][0].transcript); };
+                rec.onerror = e => { if (!done) { done = true; reject(e.error); } };
+                rec.onend = () => { activeRec = null; if (!done) { done = true; reject('no-speech'); } };
+                activeRec = rec;
+                rec.start();
+            });
+        }
+        function voiceErrorText(err) {
+            return err === 'not-allowed' ? '沒有麥克風權限（需在 https 網址下使用並允許麥克風）'
+                 : err === 'no-speech' ? '沒有聽到聲音，請再試一次'
+                 : err === 'network' ? '網路連線失敗，語音辨識需要網路'
+                 : err === 'aborted' ? '已停止聆聽' : `語音錯誤：${err}`;
+        }
+
+        // ---- 三點選單 ----
+        function toggleDropdown(e) { e.stopPropagation(); document.getElementById('dropdownMenu').classList.toggle('show'); }
+        window.addEventListener('click', () => { const m = document.getElementById('dropdownMenu'); if (m.classList.contains('show')) m.classList.remove('show'); });
+
+        function formatTime(ts) {
+            if (!ts) return ''; const d = new Date(ts); const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function toggleTime() { isShowTime = !isShowTime; localStorage.setItem('showTimeState', isShowTime); initTimeBtn(); }
+        function initTimeBtn() {
+            document.body.classList.toggle('show-time', isShowTime);
+            document.getElementById('itemTime').innerHTML = `🕒 <span>${isShowTime ? '隱藏時間' : '顯示時間'}</span>`;
+        }
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            document.body.classList.toggle('edit-mode', isEditMode);
+            document.getElementById('itemEditMode').innerHTML = isEditMode ? '✅ <span>完成修改</span>' : '⚙️ <span>開啟修改</span>';
+        }
+        function toggleCompleted() { isHideCompleted = !isHideCompleted; localStorage.setItem('hideCompletedState', isHideCompleted); initToggleBtn(); }
+        function initToggleBtn() {
+            document.body.classList.toggle('hide-completed', isHideCompleted);
+            document.getElementById('itemCompleted').innerHTML = `👁️ <span>${isHideCompleted ? '顯示已完成' : '隱藏已完成'}</span>`;
+        }
+
+        function saveData() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+            catch (e) { alert('儲存失敗（瀏覽器儲存空間可能已滿），請先下載備份。'); }
+            renderTasks();
+        }
+
+        function toggleSubtasks(id, level, parentId = null) {
+            const t = level === 'main' ? findMain(id) : findSub(parentId, id);
+            if (t) { t.collapsed = !t.collapsed; saveData(); }
+        }
+        function setAllCollapsed(val) {
+            tasks.forEach(t => { t.collapsed = val; t.subtasks.forEach(s => s.collapsed = val); });
+            saveData();
+            showToast(val ? '已全部收合' : '已全部展開', 1500);
+        }
+
+        // ---- 提示訊息 ----
+        function showToast(msg, ms = 2500) {
+            let t = document.getElementById('toast');
+            if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+            t.textContent = msg; t.classList.add('show');
+            clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), ms);
+        }
+
+        function countAll() {
+            let subs = 0, grands = 0;
+            tasks.forEach(t => { subs += t.subtasks.length; t.subtasks.forEach(s => grands += s.grandtasks.length); });
+            return { mains: tasks.length, subs, grands };
+        }
+
+        // ---- 備份 / 還原 ----
+        const LAST_BACKUP_KEY = 'work_lastBackupAt';
+        const FIRST_USE_KEY = 'work_firstUseAt';
+        const SNOOZE_KEY = 'work_backupSnoozeUntil';
+        const BACKUP_REMIND_DAYS = 7;
+
+        function downloadBackup() {
+            if (tasks.length === 0) return showToast('目前沒有資料可以備份');
+            const d = new Date(), pad = n => String(n).padStart(2, '0');
+            const fileName = `工作紀錄備份_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+            try {
+                const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = fileName; a.style.display = 'none';
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 3000);
+            } catch (e) {
+                openTextModal('export');   // 無法下載時改用文字複製
+                return;
+            }
+            localStorage.setItem(LAST_BACKUP_KEY, Date.now());
+            localStorage.removeItem(SNOOZE_KEY);
+            checkBackupReminder();
+            const c = countAll();
+            showToast(`✅ 已備份 ${c.mains} 個主任務、${c.subs} 個次任務、${c.grands} 個孫任務\n若手機沒有下載，請改用「複製備份文字」`, 3800);
+        }
+        function snoozeBackup() { localStorage.setItem(SNOOZE_KEY, Date.now() + 86400000); checkBackupReminder(); }
+        function checkBackupReminder() {
+            if (!localStorage.getItem(FIRST_USE_KEY)) localStorage.setItem(FIRST_USE_KEY, Date.now());
+            const now = Date.now();
+            const last = Number(localStorage.getItem(LAST_BACKUP_KEY)) || 0;
+            const since = last || Number(localStorage.getItem(FIRST_USE_KEY));
+            const snoozeUntil = Number(localStorage.getItem(SNOOZE_KEY)) || 0;
+            const days = Math.floor((now - since) / 86400000);
+            const show = tasks.length > 0 && days >= BACKUP_REMIND_DAYS && now > snoozeUntil;
+            document.getElementById('backupBanner').classList.toggle('show', show);
+            if (show) document.getElementById('backupBannerText').textContent = last ? `已經 ${days} 天沒有備份工作紀錄了` : '還沒備份過工作紀錄，建議備份一份';
+        }
+
+        // 文字備份 / 文字還原（Android 無法下載或選檔時使用）
+        function openTextModal(mode) {
+            const ta = document.getElementById('tmTextarea');
+            const btn = document.getElementById('tmAction');
+            if (mode === 'export') {
+                if (tasks.length === 0) return showToast('目前沒有資料可以匯出');
+                document.getElementById('tmTitle').textContent = '📋 複製備份文字';
+                document.getElementById('tmHint').textContent = '複製後可貼到 LINE、備忘錄或 Email 保存；要還原時使用「貼上文字還原」。';
+                ta.value = JSON.stringify(tasks, null, 2); ta.readOnly = true;
+                btn.textContent = '📋 複製'; btn.onclick = copyText;
+            } else {
+                document.getElementById('tmTitle').textContent = '📝 貼上文字還原';
+                document.getElementById('tmHint').textContent = '把先前複製的備份文字貼到下方，再按「還原」。';
+                ta.value = ''; ta.readOnly = false;
+                btn.textContent = '還原'; btn.onclick = () => { if (restoreFromText(ta.value)) closeTextModal(); };
+            }
+            document.getElementById('textModal').style.display = 'flex';
+            if (mode === 'import') setTimeout(() => ta.focus(), 50);
+        }
+        function closeTextModal() { document.getElementById('textModal').style.display = 'none'; }
+        async function copyText() {
+            const ta = document.getElementById('tmTextarea');
+            try { await navigator.clipboard.writeText(ta.value); }
+            catch (e) { ta.select(); document.execCommand('copy'); }
+            localStorage.setItem(LAST_BACKUP_KEY, Date.now());
+            checkBackupReminder();
+            showToast('✅ 已複製備份文字');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => { restoreFromText(e.target.result); event.target.value = ''; };
+            reader.readAsText(file);
+        }
+        function restoreFromText(text) {
+            let imported;
+            try { imported = JSON.parse(text); } catch (e) { alert('讀取失敗！請確認是本程式匯出的備份。'); return false; }
+            if (!Array.isArray(imported)) { alert('資料格式不正確！'); return false; }
+            // 匯入時重新編號，避免和現有任務 ID 重複
+            const fresh = normalizeTasks(imported).map(t => ({
+                ...t, id: newId(),
+                subtasks: t.subtasks.map(s => ({ ...s, id: newId(), grandtasks: s.grandtasks.map(g => ({ ...g, id: newId() })) }))
+            }));
+            if (tasks.length > 0 && confirm('要保留原本的資料並合併匯入嗎？\n\n按「確定」合併資料\n按「取消」則完全覆蓋目前資料')) tasks = tasks.concat(fresh);
+            else tasks = fresh;
+            saveData();
+            const c = countAll();
+            showToast(`✅ 還原成功！共 ${c.mains} 個主任務、${c.subs} 個次任務、${c.grands} 個孫任務`, 3500);
+            return true;
+        }
+
+        // ---- 拖曳後同步資料 ----
+        function syncDataFromDOM() {
+            const allSubs = new Map(), allGrands = new Map();
+            tasks.forEach(t => t.subtasks.forEach(s => { allSubs.set(s.id, s); s.grandtasks.forEach(g => allGrands.set(g.id, g)); }));
+            const newTasks = [];
+            document.querySelectorAll('#taskList > .task-card').forEach(card => {
+                const oldMain = findMain(parseInt(card.dataset.id));
+                if (!oldMain) return;
+                const subtasks = [];
+                // 孫任務容器放在次任務區塊「裡面」，拖曳次任務時孫任務會一起移動、不會遺失
+                card.querySelectorAll(':scope > .subtask-container > .subtask-item').forEach(subItem => {
+                    const oldSub = allSubs.get(parseInt(subItem.dataset.id));
+                    if (!oldSub) return;
+                    const grandtasks = [];
+                    subItem.querySelectorAll(':scope > .grandtask-container > .grandtask-row').forEach(gRow => {
+                        const g = allGrands.get(parseInt(gRow.dataset.id));
+                        if (g) grandtasks.push(g);
+                    });
+                    oldSub.grandtasks = grandtasks;
+                    subtasks.push(oldSub);
+                });
+                oldMain.subtasks = subtasks;
+                newTasks.push(oldMain);
+            });
+            tasks = newTasks;
+            setTimeout(saveData, 0);   // 等 Sortable 收尾後再重繪
+        }
+
+        // ---- 新增 / 編輯 / 刪除 ----
+        function addMainTask() {
+            const input = document.getElementById('mainTaskInput');
+            const text = input.value.trim(); if (!text) return;
+            tasks.unshift({ id: newId(), text, checked: false, collapsed: false, createdAt: Date.now(), completedAt: null, subtasks: [] });
+            input.value = ''; saveData();
+        }
+        // ---- 新增次任務 / 孫任務：預設語音，語音失敗才改用鍵盤 ----
+        let listenTarget = null;   // { level: 'sub' | 'grand', mainTaskId, subTaskId }
+        let listenEndAction = null; // 'keyboard' | 'cancel'：使用者手動中止時要做什麼
+
+        function levelName(level) { return level === 'sub' ? '次任務' : '孫任務'; }
+        function getParent(target) {
+            if (target.level === 'sub') return findMain(target.mainTaskId);
+            for (const t of tasks) { const f = t.subtasks.find(x => x.id === target.subTaskId); if (f) return f; }
+            return null;
+        }
+
+        function addSubTask(mainTaskId) { startAdd({ level: 'sub', mainTaskId }); }
+        function addGrandTask(mainTaskId, subTaskId) { startAdd({ level: 'grand', mainTaskId, subTaskId }); }
+
+        async function startAdd(target) {
+            const parent = getParent(target); if (!parent) return;
+            // 不支援語音或離線：直接鍵盤輸入
+            if (!SpeechRecognition || !navigator.onLine) { keyboardAdd(target); return; }
+
+            listenTarget = target; listenEndAction = null;
+            document.getElementById('lmTitle').textContent = `新增${levelName(target.level)}到`;
+            document.getElementById('lmParent').textContent = parent.text;
+            document.getElementById('listenModal').style.display = 'flex';
+
+            let heard = '', err = null;
+            try { heard = (await listenOnce('zh-TW')).trim(); } catch (e) { err = e; }
+            document.getElementById('listenModal').style.display = 'none';
+            const action = listenEndAction; listenTarget = null; listenEndAction = null;
+
+            if (action === 'cancel') return;
+            if (heard && action !== 'keyboard') {
+                commitAdd(target, heard);   // 辨識成功：直接新增
+                return;
+            }
+            // 語音失敗（或使用者選擇改用鍵盤）：出現鍵盤輸入框；有聽到部分內容就帶入讓使用者修改
+            if (action !== 'keyboard' && err) showToast(voiceErrorText(err) + '\n請改用鍵盤輸入', 2500);
+            keyboardAdd(target, heard);
+        }
+        function stopListen() { if (activeRec) activeRec.stop(); }          // 說完了，送出辨識
+        function switchToKeyboard() { listenEndAction = 'keyboard'; if (activeRec) activeRec.abort(); }
+        function cancelListen() { listenEndAction = 'cancel'; if (activeRec) activeRec.abort(); }
+
+        function keyboardAdd(target, preset = '') {
+            const parent = getParent(target); if (!parent) return;
+            const text = prompt(preset ? `請確認或修改${levelName(target.level)}內容：` : `新增${levelName(target.level)}到「${parent.text}」：`, preset);
+            commitAdd(target, text);
+        }
+        function commitAdd(target, text) {
+            if (!text || !text.trim()) return;
+            text = text.trim();
+            // 聆聽期間可能拖曳或刪除，重新用 ID 找一次
+            const parent = getParent(target);
+            if (!parent) return showToast(`找不到原本的${target.level === 'sub' ? '主任務' : '次任務'}，可能已被刪除`);
+            if (target.level === 'sub') {
+                parent.subtasks.unshift({ id: newId(), text, checked: false, collapsed: false, createdAt: Date.now(), completedAt: null, grandtasks: [] });
+                parent.collapsed = false;
+            } else {
+                parent.grandtasks.unshift({ id: newId(), text, checked: false, createdAt: Date.now(), completedAt: null });
+                parent.collapsed = false;
+                const main = tasks.find(t => t.subtasks.includes(parent)); if (main) main.collapsed = false;
+            }
+            saveData();
+            showToast(`✅ 已新增${levelName(target.level)}：${text}\n（點文字可修改）`, 2200);
+        }
+
+        function editTask(id, level, parentId = null, grandParentId = null) {
+            const target = getTarget(id, level, parentId, grandParentId);
+            if (!target) return;
+            const nt = prompt('請修改任務內容：', target.text);
+            if (nt !== null && nt.trim()) { target.text = nt.trim(); saveData(); }
+        }
+        function toggleCheck(id, level, parentId = null, grandParentId = null) {
+            const target = getTarget(id, level, parentId, grandParentId);
+            if (target) { target.checked = !target.checked; target.completedAt = target.checked ? Date.now() : null; saveData(); }
+        }
+        function deleteTask(id, level, parentId = null, grandParentId = null) {
+            const target = getTarget(id, level, parentId, grandParentId);
+            if (!target) return;
+            let extra = '';
+            if (level === 'main' && target.subtasks.length) extra = `\n（底下的 ${target.subtasks.length} 個次任務也會一起刪除）`;
+            if (level === 'sub' && target.grandtasks.length) extra = `\n（底下的 ${target.grandtasks.length} 個孫任務也會一起刪除）`;
+            if (!confirm(`確定要刪除「${target.text}」嗎？${extra}`)) return;
+            if (level === 'main') tasks = tasks.filter(t => t.id !== id);
+            else if (level === 'sub') { const p = findMain(parentId); if (p) p.subtasks = p.subtasks.filter(s => s.id !== id); }
+            else if (level === 'grand') { const p = findSub(grandParentId, parentId); if (p) p.grandtasks = p.grandtasks.filter(g => g.id !== id); }
+            saveData();
+        }
+
+        // ---- 畫面繪製 ----
+        function getTimeBadgeHtml(obj) {
+            const c = formatTime(obj.createdAt), f = formatTime(obj.completedAt);
+            return `<span class="time-badge">建立: ${c}${f ? ` | 完成: ${f}` : ''}</span>`;
+        }
+        function progressTag(list) {
+            if (!list.length) return '';
+            const done = list.filter(x => x.checked).length;
+            return `<span class="progress-tag ${done === list.length ? 'done' : ''}">${done}/${list.length}</span>`;
+        }
+        function updateTodayStat() {
+            const start = new Date(); start.setHours(0, 0, 0, 0);
+            const s = start.getTime(); let n = 0;
+            const cnt = o => { if (o.checked && o.completedAt >= s) n++; };
+            tasks.forEach(t => { cnt(t); t.subtasks.forEach(x => { cnt(x); x.grandtasks.forEach(cnt); }); });
+            document.getElementById('todayStat').textContent = n ? `· 今日完成 ${n}` : '';
+        }
+
+        function renderTasks() {
+            sortableInstances.forEach(i => { try { i.destroy(); } catch (e) {} });
+            sortableInstances = [];
+            const container = document.getElementById('taskList');
+            container.innerHTML = '';
+            updateTodayStat();
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<div class="empty-hint">還沒有任務，先在上方新增一個主要任務吧！<br>也可以按 🎤 用說的新增。</div>';
+            }
+
+            tasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = 'task-card' + (task.checked ? ' completed-card' : '');
+                card.dataset.id = task.id;
+
+                const toggle = task.subtasks.length
+                    ? `<div class="toggle-icon" onclick="toggleSubtasks(${task.id}, 'main')">${task.collapsed ? '▶' : '▼'}</div>`
+                    : `<div class="toggle-placeholder"></div>`;
+                let html = `
+                    <div class="task-row main-row">
+                        <div class="drag-handle main-handle">☰</div>
+                        ${toggle}
+                        <input type="checkbox" ${task.checked ? 'checked' : ''} onchange="toggleCheck(${task.id}, 'main')">
+                        <div class="task-text main-task-text ${task.checked ? 'completed' : ''}" onclick="editTask(${task.id}, 'main')" title="點一下修改文字">
+                            ${escapeHtml(task.text)}${progressTag(task.subtasks)} ${getTimeBadgeHtml(task)}
+                        </div>
+                        <div class="row-actions">
+                            <button class="action-btn btn-edit" title="編輯" onclick="editTask(${task.id}, 'main')">${ICON.edit}</button>
+                            <button class="action-btn btn-delete" title="刪除" onclick="deleteTask(${task.id}, 'main')">${ICON.trash}</button>
+                            <button class="action-btn btn-add-sub" title="新增次任務" onclick="addSubTask(${task.id})">${ICON.plus}</button>
+                        </div>
+                    </div>
+                    <div class="subtask-container ${task.collapsed ? 'collapsed' : ''}">`;
+
+                task.subtasks.forEach(sub => {
+                    const subToggle = sub.grandtasks.length
+                        ? `<div class="toggle-icon" onclick="toggleSubtasks(${sub.id}, 'sub', ${task.id})">${sub.collapsed ? '▶' : '▼'}</div>`
+                        : `<div class="toggle-placeholder"></div>`;
+                    html += `
+                        <div class="subtask-item ${sub.checked ? 'completed-sub' : ''}" data-id="${sub.id}">
+                            <div class="task-row subtask-row">
+                                <div class="drag-handle sub-handle">☰</div>
+                                ${subToggle}
+                                <input type="checkbox" ${sub.checked ? 'checked' : ''} onchange="toggleCheck(${sub.id}, 'sub', ${task.id})">
+                                <div class="task-text sub-task-text ${sub.checked ? 'completed' : ''}" onclick="editTask(${sub.id}, 'sub', ${task.id})" title="點一下修改文字">
+                                    ${escapeHtml(sub.text)}${progressTag(sub.grandtasks)} ${getTimeBadgeHtml(sub)}
+                                </div>
+                                <div class="row-actions">
+                                    <button class="action-btn btn-edit" title="編輯" onclick="editTask(${sub.id}, 'sub', ${task.id})">${ICON.edit}</button>
+                                    <button class="action-btn btn-delete" title="刪除" onclick="deleteTask(${sub.id}, 'sub', ${task.id})">${ICON.trash}</button>
+                                    <button class="action-btn btn-add-sub small" title="新增孫任務" onclick="addGrandTask(${task.id}, ${sub.id})">${ICON.plus}</button>
+                                </div>
+                            </div>
+                            <div class="grandtask-container ${sub.collapsed ? 'collapsed' : ''}">`;
+                    sub.grandtasks.forEach(g => {
+                        html += `
+                                <div class="task-row grandtask-row ${g.checked ? 'completed-grand' : ''}" data-id="${g.id}">
+                                    <div class="drag-handle grand-handle">☰</div>
+                                    <input type="checkbox" ${g.checked ? 'checked' : ''} onchange="toggleCheck(${g.id}, 'grand', ${sub.id}, ${task.id})">
+                                    <div class="task-text grand-task-text ${g.checked ? 'completed' : ''}" onclick="editTask(${g.id}, 'grand', ${sub.id}, ${task.id})" title="點一下修改文字">
+                                        ${escapeHtml(g.text)} ${getTimeBadgeHtml(g)}
+                                    </div>
+                                    <div class="row-actions">
+                                        <button class="action-btn btn-edit" title="編輯" onclick="editTask(${g.id}, 'grand', ${sub.id}, ${task.id})">${ICON.edit}</button>
+                                        <button class="action-btn btn-delete" title="刪除" onclick="deleteTask(${g.id}, 'grand', ${sub.id}, ${task.id})">${ICON.trash}</button>
+                                    </div>
+                                </div>`;
+                    });
+                    html += `</div></div>`;   // 關閉 grandtask-container 與 subtask-item
+                });
+
+                html += `</div>`;
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+            initSortable();
+        }
+
+        function initSortable() {
+            if (typeof Sortable === 'undefined') return;
+            try {
+                sortableInstances.push(new Sortable(document.getElementById('taskList'), { animation: 150, handle: '.main-handle', draggable: '.task-card', onEnd: syncDataFromDOM }));
+                document.querySelectorAll('.subtask-container').forEach(c => sortableInstances.push(new Sortable(c, {
+                    group: 'shared-subtasks', animation: 150, handle: '.sub-handle', draggable: '.subtask-item',
+                    fallbackOnBody: true, swapThreshold: 0.65, onEnd: syncDataFromDOM
+                })));
+                document.querySelectorAll('.grandtask-container').forEach(c => sortableInstances.push(new Sortable(c, {
+                    group: 'shared-grandtasks', animation: 150, handle: '.grand-handle', draggable: '.grandtask-row',
+                    fallbackOnBody: true, swapThreshold: 0.65, onEnd: syncDataFromDOM
+                })));
+            } catch (e) { console.error('拖曳功能初始化失敗:', e); }
+        }
+
+        initTimeBtn(); initToggleBtn(); renderTasks(); checkBackupReminder();
+
+        // 從主畫面捷徑「新增任務」開啟時，直接把游標放到輸入框
+        if (new URLSearchParams(location.search).get('action') === 'new') setTimeout(() => document.getElementById('mainTaskInput').focus(), 300);
+
+        // 拖曳套件若在 App 開啟後才載入完成（例如網路較慢），補上拖曳功能
+        if (typeof Sortable === 'undefined') window.addEventListener('load', () => { if (typeof Sortable !== 'undefined') renderTasks(); });
+
+        // ---- 註冊 Service Worker（PWA：可安裝、可離線開啟） ----
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service Worker 註冊失敗:', err));
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "id": "./",
+  "name": "每日工作記錄表",
+  "short_name": "工作記錄",
+  "description": "可語音輸入、三層任務、拖曳排序與時間記錄的每日工作記錄表。",
+  "lang": "zh-TW",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#f5f7f8",
+  "theme_color": "#1a73e8",
+  "categories": ["productivity", "utilities"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "screenshots/phone-1.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "三層任務與完成進度" },
+    { "src": "screenshots/phone-2.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "語音新增次任務" },
+    { "src": "screenshots/wide-1.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "電腦版畫面" }
+  ],
+  "shortcuts": [
+    { "name": "新增任務", "short_name": "新增", "url": "./?action=new", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
