@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.2</title>
+    <title>每日工作記錄表 v2.3</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -143,7 +143,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2>📋 每日工作記錄表 <span class="version-tag">v2.2</span><span class="today-stat" id="todayStat"></span></h2>
+            <h2>📋 每日工作記錄表 <span class="version-tag">v2.3</span><span class="today-stat" id="todayStat"></span></h2>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -483,6 +483,9 @@
 
         // ---- 拖曳後同步資料 ----
         function syncDataFromDOM() {
+            // 保護機制：先記下拖曳前的資料與數量，拖曳後若任務變少就自動復原
+            const snapshot = JSON.stringify(tasks);
+            const before = countAll();
             const allSubs = new Map(), allGrands = new Map();
             tasks.forEach(t => t.subtasks.forEach(s => { allSubs.set(s.id, s); s.grandtasks.forEach(g => allGrands.set(g.id, g)); }));
             const newTasks = [];
@@ -506,6 +509,13 @@
                 newTasks.push(oldMain);
             });
             tasks = newTasks;
+            const after = countAll();
+            if (after.mains !== before.mains || after.subs !== before.subs || after.grands !== before.grands) {
+                tasks = JSON.parse(snapshot);
+                setTimeout(renderTasks, 0);
+                showToast('⚠️ 拖曳時資料數量不一致，已自動復原，沒有任何任務遺失', 3500);
+                return;
+            }
             setTimeout(saveData, 0);   // 等 Sortable 收尾後再重繪
         }
 

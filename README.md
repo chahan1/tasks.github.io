@@ -1,10 +1,10 @@
-# 每日工作記錄表 v2.2：PWA 與 Android APK 打包說明
+# 每日工作記錄表 v2.3：PWA 與 Android APK 打包說明
 
 ## 資料夾內容
 
 | 檔案 | 用途 |
 |---|---|
-| `index.html` | App 本體（v2.2，已加上 manifest 連結與 Service Worker 註冊） |
+| `index.html` | App 本體（v2.3，已加上 manifest 連結與 Service Worker 註冊） |
 | `manifest.json` | PWA 設定：名稱、圖示、主題色、截圖、捷徑 |
 | `sw.js` | Service Worker：讓 App 可安裝、可離線開啟 |
 | `icons/` | 一般圖示 192／512、可裁切圖示（maskable）192／512、iPhone 圖示、網頁小圖示 |
@@ -67,5 +67,5 @@
 
 - **資料存在手機裡**：APK 透過手機上的 Chrome 執行，通常會和 Chrome 開同一個網址時共用資料。但如果清除 Chrome 資料、換了網址或手機沒有 Chrome，資料就會不同。安裝 APK 前，建議先用「下載備份檔」或「複製備份文字」備份一份，必要時再還原。
 - **語音輸入**：APK 實際上是由手機上的 Chrome 執行，所以語音辨識跟 Chrome 一樣需要網路；離線時會自動改用鍵盤輸入。
-- **更新 App**：修改 `index.html` 後，請把 `sw.js` 第 3 行的 `worklog-v2.2` 改成新的版本號（例如 `worklog-v2.3`）再上傳，手機下次開啟時就會更新。只改網站內容不需要重新產生 APK。
+- **更新 App**：修改 `index.html` 後，請把 `sw.js` 第 3 行的 `worklog-v2.3` 改成新的版本號（例如 `worklog-v2.4`）再上傳，手機下次開啟時就會更新。只改網站內容不需要重新產生 APK。
 - **拖曳套件**：SortableJS 從 CDN 載入，第一次連網開啟時會自動存進快取，之後離線也能拖曳。
