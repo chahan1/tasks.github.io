@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.3</title>
+    <title>每日工作記錄表 v2.4</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -143,7 +143,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2>📋 每日工作記錄表 <span class="version-tag">v2.3</span><span class="today-stat" id="todayStat"></span></h2>
+            <h2>📋 每日工作記錄表 <span class="version-tag">v2.4</span><span class="today-stat" id="todayStat"></span></h2>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -153,8 +153,9 @@
                     <div class="dropdown-item" onclick="setAllCollapsed(true)">🗂️ <span>全部收合</span></div>
                     <div class="dropdown-item" onclick="setAllCollapsed(false)">📂 <span>全部展開</span></div>
                     <div class="dropdown-divider"></div>
-                    <div class="dropdown-item" onclick="downloadBackup()">📥 <span>下載備份檔</span></div>
-                    <div class="dropdown-item" onclick="document.getElementById('importFile').click()">📤 <span>從備份檔還原</span></div>
+                    <div class="dropdown-item" onclick="shareBackupToDrive()">☁️ <span>備份到 Google Drive</span></div>
+                    <div class="dropdown-item" onclick="downloadBackup()">📥 <span>下載備份檔到手機</span></div>
+                    <div class="dropdown-item" onclick="openRestore()">📂 <span>從備份檔還原</span></div>
                     <div class="dropdown-item" onclick="openTextModal('export')">📋 <span>複製備份文字</span></div>
                     <div class="dropdown-item" onclick="openTextModal('import')">📝 <span>貼上文字還原</span></div>
                 </div>
@@ -170,7 +171,7 @@
         <div class="edit-bar"><span>✏️ 修改模式：可編輯、刪除任務</span><button class="bb-btn primary" onclick="toggleEditMode()">完成</button></div>
         <div id="backupBanner" class="backup-banner">
             <span id="backupBannerText">好一陣子沒備份了</span>
-            <button class="bb-btn primary" onclick="downloadBackup()">立即備份</button>
+            <button class="bb-btn primary" onclick="quickBackup()">立即備份</button>
             <button class="bb-btn" onclick="snoozeBackup()">稍後</button>
         </div>
     </div>
@@ -397,8 +398,7 @@
 
         function downloadBackup() {
             if (tasks.length === 0) return showToast('目前沒有資料可以備份');
-            const d = new Date(), pad = n => String(n).padStart(2, '0');
-            const fileName = `工作紀錄備份_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+            const fileName = backupFileName('json');
             try {
                 const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -410,12 +410,47 @@
                 openTextModal('export');   // 無法下載時改用文字複製
                 return;
             }
-            localStorage.setItem(LAST_BACKUP_KEY, Date.now());
-            localStorage.removeItem(SNOOZE_KEY);
-            checkBackupReminder();
+            markBackedUp();
             const c = countAll();
             showToast(`✅ 已備份 ${c.mains} 個主任務、${c.subs} 個次任務、${c.grands} 個孫任務\n若手機沒有下載，請改用「複製備份文字」`, 3800);
         }
+        function markBackedUp() { localStorage.setItem(LAST_BACKUP_KEY, Date.now()); localStorage.removeItem(SNOOZE_KEY); checkBackupReminder(); }
+        function backupFileName(ext) {
+            const d = new Date(), pad = n => String(n).padStart(2, '0');
+            return `工作紀錄備份_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.${ext}`;
+        }
+        // 手機是否支援「分享檔案」（Android Chrome / APK 支援）
+        const canShareFiles = () => { try { return !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 't.txt', { type: 'text/plain' })] })); } catch (e) { return false; } };
+
+        // 備份到 Google Drive：用手機的「分享」，在分享選單選「雲端硬碟」，
+        // 可以自己選 Google 帳號和資料夾（不需要任何設定）。
+        // 檔案用 .txt（內容是 JSON），因為 Android 的分享功能不接受 .json 檔。
+        async function shareBackupToDrive() {
+            if (tasks.length === 0) return showToast('目前沒有資料可以備份');
+            const file = new File([JSON.stringify(tasks, null, 2)], backupFileName('txt'), { type: 'text/plain' });
+            if (!canShareFiles() || !navigator.canShare({ files: [file] })) {
+                showToast('這個瀏覽器不支援直接分享\n改為下載到手機，可再從「檔案」App 上傳到 Drive', 4000);
+                return downloadBackup();
+            }
+            try {
+                await navigator.share({ files: [file], title: '每日工作記錄表備份' });
+                markBackedUp();
+                const c = countAll();
+                showToast(`✅ 已送出備份（${c.mains} 個主任務、${c.subs} 個次任務、${c.grands} 個孫任務）\n若選了「雲端硬碟」，檔案就在你的 Google Drive`, 4000);
+            } catch (e) {
+                if (e && e.name === 'AbortError') return;   // 使用者取消分享
+                showToast('分享失敗，改為下載到手機', 3000);
+                downloadBackup();
+            }
+        }
+        function quickBackup() { canShareFiles() ? shareBackupToDrive() : downloadBackup(); }
+
+        // 還原：檔案選擇畫面可以直接選 Google Drive 裡的備份檔（.txt 或 .json 都可以）
+        function openRestore() {
+            showToast('在檔案選擇畫面點左上角 ☰\n選「雲端硬碟」就能找到 Google Drive 裡的備份檔', 5000);
+            setTimeout(() => document.getElementById('importFile').click(), 400);
+        }
+
         function snoozeBackup() { localStorage.setItem(SNOOZE_KEY, Date.now() + 86400000); checkBackupReminder(); }
         function checkBackupReminder() {
             if (!localStorage.getItem(FIRST_USE_KEY)) localStorage.setItem(FIRST_USE_KEY, Date.now());
