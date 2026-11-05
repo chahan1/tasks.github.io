@@ -12,8 +12,8 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.8</title>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <title>每日工作記錄表 v2.9</title>
+    <script src="sortable.min.js"></script><!-- SortableJS 1.15.6（MIT），放在本機，離線也能拖曳 -->
     <style>
         * { box-sizing: border-box; }
         :root { --blue: #1a73e8; --blue-light: #e8f0fe; --blue-line: #d2e3fc; --sub: #3c4043; --line: #eef0f2; --muted: #8a9096; --text: #2b2f33; }
@@ -188,6 +188,15 @@
         .rp-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 10px 0; }
         .rp-actions { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
         #textModal { z-index: 1200; }
+        /* 拖曳時：空的次任務 / 孫任務區顯示成可放置的區域 */
+        body.dragging .subtask-container:not(.collapsed):empty,
+        body.dragging .grandtask-container:not(.collapsed):empty { min-height: 22px; border: 1.5px dashed var(--blue-line); border-radius: 6px; margin: 2px 4px 4px 28px; }
+        body.dragging .subtask-container:not(.collapsed):empty { margin-left: 12px; }
+        .sortable-ghost { opacity: 0.4; }
+        .undo-bar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(120px); background: #323639; color: white; font-size: 13px; padding: 6px 6px 6px 14px; border-radius: 22px; display: flex; align-items: center; gap: 10px; z-index: 2100; transition: transform 0.25s; max-width: 92%; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+        .undo-bar.show { transform: translateX(-50%) translateY(0); }
+        .undo-bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .undo-bar button { background: transparent; border: none; color: #8ab4f8; font-weight: 700; font-size: 13px; padding: 6px 10px; border-radius: 14px; cursor: pointer; flex-shrink: 0; }
         .task-card.flash { animation: flash 1.6s ease; }
         @keyframes flash { 0%, 60% { box-shadow: 0 0 0 2px var(--blue); } 100% { box-shadow: 0 1px 2px rgba(0,0,0,0.05); } }
 
@@ -204,7 +213,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2>📋 每日工作記錄表 <span class="version-tag">v2.8</span><span class="today-stat" id="todayStat"></span></h2>
+            <h2>📋 每日工作記錄表 <span class="version-tag">v2.9</span><span class="today-stat" id="todayStat"></span></h2>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -429,18 +438,21 @@
         }
 
         // ---- 子項目全部完成 → 上層自動完成 ----
-        // 規則（v2.7）：有子任務的任務，完成狀態由子任務決定
+        // 規則（v2.9）：
         //  1. 孫任務全部打勾 → 次任務自動打勾；次任務全部打勾 → 主任務自動打勾（會一路往上連動）
         //  2. 只要有任何子任務未完成（取消打勾、新增子任務），上層就自動恢復成未完成
         //  3. 有未完成子任務時，上層不能手動打勾（見 toggleCheck）
+        //  4. 子任務全部完成時，上層仍可手動取消打勾（標記 reopened），會保持未完成；
+        //     之後只要它底下的子任務有變動（打勾、新增、刪除、拖進拖出），就恢復自動判斷
         function autoStatus(parent, children) {
             if (!children || children.length === 0) return null;
             const allDone = children.every(c => c.checked);
-            if (allDone && !parent.checked) {
+            if (allDone && !parent.checked && !parent.reopened) {
                 parent.checked = true; parent.autoDone = true;
                 parent.completedAt = Math.max(...children.map(c => c.completedAt || 0)) || Date.now();
                 return 'done';
             }
+            if (!allDone) delete parent.reopened;
             if (!allDone && parent.checked) {
                 parent.checked = false; delete parent.autoDone; parent.completedAt = null;
                 return 'undone';
@@ -628,41 +640,105 @@
         }
 
         // ---- 拖曳後同步資料 ----
-        function syncDataFromDOM() {
-            // 保護機制：先記下拖曳前的資料與數量，拖曳後若任務變少就自動復原
+        // ---- 拖曳（v2.9：可以跨層級搬移） ----
+        // 主任務、次任務、孫任務都在同一個拖曳群組，可以互相拖進不同層級：
+        //   拖到主任務清單 → 變成主任務；拖到某主任務底下 → 變成次任務；拖到某次任務底下 → 變成孫任務
+        // 最多三層：帶著子任務往下搬時，若會超過三層就不允許，並自動復原。
+        function locate(id) {
+            for (const m of tasks) {
+                if (m.id === id) return { obj: m, level: 'main', list: tasks, main: null, sub: null };
+                for (const s of m.subtasks) {
+                    if (s.id === id) return { obj: s, level: 'sub', list: m.subtasks, main: m, sub: null };
+                    for (const g of s.grandtasks) if (g.id === id) return { obj: g, level: 'grand', list: s.grandtasks, main: m, sub: s };
+                }
+            }
+            return null;
+        }
+        // 把任務轉成指定層級；不允許（會超過三層）時回傳 null
+        function convertLevel(obj, from, to) {
+            const base = { id: obj.id, text: obj.text, checked: !!obj.checked, createdAt: obj.createdAt, completedAt: obj.completedAt ?? null };
+            if (obj.autoDone) base.autoDone = true;
+            const kids = from === 'main' ? obj.subtasks : from === 'sub' ? obj.grandtasks : [];
+            if (to === 'main') {
+                const subtasks = from === 'main' ? obj.subtasks
+                    : kids.map(g => ({ id: g.id, text: g.text, checked: !!g.checked, collapsed: false, createdAt: g.createdAt, completedAt: g.completedAt ?? null, grandtasks: [] }));
+                return { ...base, collapsed: !!obj.collapsed, subtasks };
+            }
+            if (to === 'sub') {
+                if (from === 'main' && kids.some(s => s.grandtasks.length)) return null;   // 會變成第四層
+                const grandtasks = kids.map(k => ({ id: k.id, text: k.text, checked: !!k.checked, createdAt: k.createdAt, completedAt: k.completedAt ?? null }));
+                return { ...base, collapsed: !!obj.collapsed, grandtasks };
+            }
+            if (kids.length) return null;   // 有子任務的項目不能變成孫任務
+            delete base.autoDone;
+            return base;
+        }
+        const LEVEL_NAME = { main: '主任務', sub: '次任務', grand: '孫任務' };
+        function containerInfo(el) {
+            if (el.id === 'taskList') return { level: 'main', list: tasks, parent: null, main: null };
+            if (el.classList.contains('subtask-container')) { const m = findMain(+el.dataset.main); return m ? { level: 'sub', list: m.subtasks, parent: m, main: m } : null; }
+            if (el.classList.contains('grandtask-container')) { const sb = findSub(+el.dataset.main, +el.dataset.sub); return sb ? { level: 'grand', list: sb.grandtasks, parent: sb, main: findMain(+el.dataset.main) } : null; }
+            return null;
+        }
+        const ITEM_SEL = '.task-card, .subtask-item, .grandtask-row';
+
+        let undoSnapshot = null;
+        function onDragEnd(evt) {
+            document.body.classList.remove('dragging');
             const snapshot = JSON.stringify(tasks);
             const before = countAll();
-            const allSubs = new Map(), allGrands = new Map();
-            tasks.forEach(t => t.subtasks.forEach(s => { allSubs.set(s.id, s); s.grandtasks.forEach(g => allGrands.set(g.id, g)); }));
-            const newTasks = [];
-            document.querySelectorAll('#taskList > .task-card').forEach(card => {
-                const oldMain = findMain(parseInt(card.dataset.id));
-                if (!oldMain) return;
-                const subtasks = [];
-                // 孫任務容器放在次任務區塊「裡面」，拖曳次任務時孫任務會一起移動、不會遺失
-                card.querySelectorAll(':scope > .subtask-container > .subtask-item').forEach(subItem => {
-                    const oldSub = allSubs.get(parseInt(subItem.dataset.id));
-                    if (!oldSub) return;
-                    const grandtasks = [];
-                    subItem.querySelectorAll(':scope > .grandtask-container > .grandtask-row').forEach(gRow => {
-                        const g = allGrands.get(parseInt(gRow.dataset.id));
-                        if (g) grandtasks.push(g);
-                    });
-                    oldSub.grandtasks = grandtasks;
-                    subtasks.push(oldSub);
-                });
-                oldMain.subtasks = subtasks;
-                newTasks.push(oldMain);
-            });
-            tasks = newTasks;
+            const fail = msg => { tasks = JSON.parse(snapshot); setTimeout(renderTasks, 0); if (msg) showToast(msg, 3500); };
+
+            const id = +evt.item.dataset.id;
+            const src = locate(id);
+            const dst = containerInfo(evt.to);
+            if (!src || !dst) return fail();
+            // 計算放下的位置：目標容器中，排在它前面的任務有幾個
+            let index = 0;
+            for (const el of evt.to.children) { if (el === evt.item) break; if (el.matches(ITEM_SEL)) index++; }
+
+            if (src.list === dst.list && evt.oldIndex === evt.newIndex) return setTimeout(renderTasks, 0);   // 沒有移動
+            // 不能拖進自己底下
+            if (dst.parent && (dst.parent === src.obj || dst.main === src.obj)) return fail('⚠️ 不能把任務拖進它自己底下');
+
+            const moved = src.level === dst.level ? src.obj : convertLevel(src.obj, src.level, dst.level);
+            if (!moved) return fail(dst.level === 'grand'
+                ? `⚠️ 「${src.obj.text}」底下還有子任務，不能變成孫任務\n請先移走它的子任務`
+                : `⚠️ 「${src.obj.text}」的次任務底下還有孫任務，搬到這裡會超過三層\n請先移走那些孫任務`);
+
+            src.list.splice(src.list.indexOf(src.obj), 1);
+            dst.list.splice(Math.min(index, dst.list.length), 0, moved);
+            // 來源與目的地的上層都恢復自動判斷
+            [src.main, src.sub, dst.parent, dst.main].forEach(clearReopened);
+            if (dst.parent) dst.parent.collapsed = false;
+            if (dst.main) dst.main.collapsed = false;
+
+            // 保護機制：任務總數必須不變，否則復原
             const after = countAll();
-            if (after.mains !== before.mains || after.subs !== before.subs || after.grands !== before.grands) {
-                tasks = JSON.parse(snapshot);
-                setTimeout(renderTasks, 0);
-                showToast('⚠️ 拖曳時資料數量不一致，已自動復原，沒有任何任務遺失', 3500);
-                return;
+            if (after.mains + after.subs + after.grands !== before.mains + before.subs + before.grands) return fail('⚠️ 拖曳時資料數量不一致，已自動復原，沒有任何任務遺失');
+
+            if (src.level !== dst.level) {
+                undoSnapshot = snapshot;
+                showUndo(`已把「${moved.text}」改為${LEVEL_NAME[dst.level]}`);
             }
             setTimeout(saveData, 0);   // 等 Sortable 收尾後再重繪
+        }
+        function showUndo(msg) {
+            let bar = document.getElementById('undoBar');
+            if (!bar) {
+                bar = document.createElement('div'); bar.id = 'undoBar'; bar.className = 'undo-bar';
+                bar.innerHTML = '<span></span><button onclick="doUndo()">復原</button>';
+                document.body.appendChild(bar);
+            }
+            bar.querySelector('span').textContent = msg;
+            bar.classList.add('show');
+            clearTimeout(bar._t); bar._t = setTimeout(() => { bar.classList.remove('show'); undoSnapshot = null; }, 6000);
+        }
+        function doUndo() {
+            if (!undoSnapshot) return;
+            tasks = JSON.parse(undoSnapshot); undoSnapshot = null;
+            document.getElementById('undoBar').classList.remove('show');
+            saveData(); showToast('已復原', 1500);
         }
 
         // ---- 新增 / 編輯 / 刪除 ----
@@ -727,9 +803,11 @@
             if (!parent) return showToast(`找不到原本的${target.level === 'sub' ? '主任務' : '次任務'}，可能已被刪除`);
             if (target.level === 'sub') {
                 parent.subtasks.unshift({ id: newId(), text, checked: false, collapsed: false, createdAt: Date.now(), completedAt: null, grandtasks: [] });
+                clearReopened(parent);
                 parent.collapsed = false;
             } else {
                 parent.grandtasks.unshift({ id: newId(), text, checked: false, createdAt: Date.now(), completedAt: null });
+                clearReopened(parent);
                 parent.collapsed = false;
                 const main = tasks.find(t => t.subtasks.includes(parent)); if (main) main.collapsed = false;
             }
@@ -784,19 +862,23 @@
                     showToast(`⚠️ 還有 ${n} 個未完成的${childName}\n全部完成後會自動標示完成`, 3000);
                     return;
                 }
-                if (target.checked && n === 0) {
-                    renderTasks();
-                    showToast(`底下的${childName}都已完成，所以保持完成\n要重新開啟，請取消某個${childName}的勾選或新增${childName}`, 3800);
-                    return;
-                }
             }
             target.checked = !target.checked;
             target.completedAt = target.checked ? Date.now() : null;
             delete target.autoDone;   // 手動打勾 / 取消，以使用者的選擇為準
+            // 上層任務手動取消勾選（子任務都已完成）→ 保持未完成，可以繼續新增子任務
+            if (children.length > 0 && !target.checked) {
+                target.reopened = true;
+                showToast(`已改為未完成，可以繼續新增${level === 'main' ? '次任務' : '孫任務'}`, 2500);
+            } else delete target.reopened;
+            // 子任務有變動 → 上層恢復自動判斷
+            if (level === 'sub') clearReopened(findMain(parentId));
+            if (level === 'grand') { clearReopened(findSub(grandParentId, parentId)); clearReopened(findMain(grandParentId)); }
             const list = getSiblingList(level, parentId, grandParentId);
             if (list) reorderAfterCheck(list, target);
             saveData();
         }
+        function clearReopened(o) { if (o) delete o.reopened; }
         function deleteTask(id, level, parentId = null, grandParentId = null) {
             const target = getTarget(id, level, parentId, grandParentId);
             if (!target) return;
@@ -805,8 +887,8 @@
             if (level === 'sub' && target.grandtasks.length) extra = `\n（底下的 ${target.grandtasks.length} 個孫任務也會一起刪除）`;
             if (!confirm(`確定要刪除「${target.text}」嗎？${extra}`)) return;
             if (level === 'main') tasks = tasks.filter(t => t.id !== id);
-            else if (level === 'sub') { const p = findMain(parentId); if (p) p.subtasks = p.subtasks.filter(s => s.id !== id); }
-            else if (level === 'grand') { const p = findSub(grandParentId, parentId); if (p) p.grandtasks = p.grandtasks.filter(g => g.id !== id); }
+            else if (level === 'sub') { const p = findMain(parentId); if (p) { p.subtasks = p.subtasks.filter(s => s.id !== id); clearReopened(p); } }
+            else if (level === 'grand') { const p = findSub(grandParentId, parentId); if (p) { p.grandtasks = p.grandtasks.filter(g => g.id !== id); clearReopened(p); clearReopened(findMain(grandParentId)); } }
             saveData();
         }
 
@@ -1041,7 +1123,7 @@
                             <button class="action-btn btn-add-sub" title="新增次任務" onclick="addSubTask(${task.id})">${ICON.plus}</button>
                         </div>
                     </div>
-                    <div class="subtask-container ${task.collapsed ? 'collapsed' : ''}">`;
+                    <div class="subtask-container ${task.collapsed ? 'collapsed' : ''}" data-main="${task.id}">`;
 
                 task.subtasks.forEach(sub => {
                     const subToggle = sub.grandtasks.length
@@ -1062,7 +1144,7 @@
                                     <button class="action-btn btn-add-sub small" title="新增孫任務" onclick="addGrandTask(${task.id}, ${sub.id})">${ICON.plus}</button>
                                 </div>
                             </div>
-                            <div class="grandtask-container ${sub.collapsed ? 'collapsed' : ''}">`;
+                            <div class="grandtask-container ${sub.collapsed ? 'collapsed' : ''}" data-main="${task.id}" data-sub="${sub.id}">`;
                     sub.grandtasks.forEach(g => {
                         html += `
                                 <div class="task-row grandtask-row ${g.checked ? 'completed-grand' : ''}" data-id="${g.id}">
@@ -1089,16 +1171,16 @@
 
         function initSortable() {
             if (typeof Sortable === 'undefined') return;
+            const common = {
+                group: 'tasks', animation: 150, fallbackOnBody: true, swapThreshold: 0.65,
+                emptyInsertThreshold: 12,
+                onStart: () => document.body.classList.add('dragging'),
+                onEnd: onDragEnd
+            };
             try {
-                sortableInstances.push(new Sortable(document.getElementById('taskList'), { animation: 150, handle: '.main-handle', draggable: '.task-card', onEnd: syncDataFromDOM }));
-                document.querySelectorAll('.subtask-container').forEach(c => sortableInstances.push(new Sortable(c, {
-                    group: 'shared-subtasks', animation: 150, handle: '.sub-handle', draggable: '.subtask-item',
-                    fallbackOnBody: true, swapThreshold: 0.65, onEnd: syncDataFromDOM
-                })));
-                document.querySelectorAll('.grandtask-container').forEach(c => sortableInstances.push(new Sortable(c, {
-                    group: 'shared-grandtasks', animation: 150, handle: '.grand-handle', draggable: '.grandtask-row',
-                    fallbackOnBody: true, swapThreshold: 0.65, onEnd: syncDataFromDOM
-                })));
+                sortableInstances.push(new Sortable(document.getElementById('taskList'), { ...common, handle: '.main-handle', draggable: '.task-card' }));
+                document.querySelectorAll('.subtask-container').forEach(c => sortableInstances.push(new Sortable(c, { ...common, handle: '.sub-handle', draggable: '.subtask-item' })));
+                document.querySelectorAll('.grandtask-container').forEach(c => sortableInstances.push(new Sortable(c, { ...common, handle: '.grand-handle', draggable: '.grandtask-row' })));
             } catch (e) { console.error('拖曳功能初始化失敗:', e); }
         }
 
