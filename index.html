@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.6</title>
+    <title>每日工作記錄表 v2.8</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -74,6 +74,7 @@
         .drag-handle:active { cursor: grabbing; color: var(--blue); }
         input[type="checkbox"] { width: 15px; height: 15px; margin: 0 3px 0 1px; cursor: pointer; accent-color: var(--blue); flex-shrink: 0; }
 
+        input[type="checkbox"].locked { opacity: 0.35; }
         .main-task-text { font-size: 14px; font-weight: 700; color: var(--blue); }
         .sub-task-text { font-size: 13.5px; font-weight: 600; color: var(--sub); }
         .grand-task-text { font-size: 12.5px; font-weight: 400; color: var(--text); line-height: 1.45; }
@@ -130,6 +131,66 @@
         .lm-actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(217,48,37,0.45); } 70% { box-shadow: 0 0 0 14px rgba(217,48,37,0); } 100% { box-shadow: 0 0 0 0 rgba(217,48,37,0); } }
 
+        /* ---- 總覽報表 ---- */
+        .report-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1100; justify-content: center; align-items: flex-end; }
+        .report-sheet { background: #f5f7f8; width: 100%; max-width: 680px; max-height: 92vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 0 12px 20px; -webkit-overflow-scrolling: touch; }
+        @media (min-width: 600px) { .report-overlay { align-items: center; } .report-sheet { border-radius: 16px; } }
+        .rp-head { position: sticky; top: 0; background: #f5f7f8; display: flex; align-items: center; justify-content: space-between; padding: 12px 0 8px; z-index: 2; }
+        .rp-head h3 { margin: 0; font-size: 16px; color: var(--blue); }
+        .rp-head small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+        .rp-close { background: none; border: none; font-size: 22px; color: #80868b; width: 34px; height: 34px; cursor: pointer; border-radius: 50%; }
+        .rp-close:hover { background: #e8eaed; }
+        .rp-card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .rp-card h4 { margin: 0 0 8px; font-size: 13px; color: var(--sub); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .rp-card h4 small { font-weight: 400; color: var(--muted); font-size: 11px; }
+        .rp-hero { display: flex; align-items: center; gap: 14px; }
+        .rp-ring { width: 76px; height: 76px; flex-shrink: 0; }
+        .rp-hero-num { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+        .rp-hero-sub { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+        .rp-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+        .rp-tile { background: #f7f9fb; border-radius: 10px; padding: 8px 10px; }
+        .rp-tile .lbl { font-size: 11px; color: var(--muted); }
+        .rp-tile .val { font-size: 17px; font-weight: 700; color: var(--text); margin-top: 2px; }
+        .rp-tile .val small { font-size: 11px; font-weight: 400; color: var(--muted); }
+        .rp-mini { height: 4px; background: #e8eaed; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .rp-mini i { display: block; height: 100%; background: var(--blue); border-radius: 2px; }
+        .rp-chart { position: relative; }
+        .rp-chart svg { width: 100%; height: 130px; display: block; overflow: visible; }
+        .rp-chart .bar { fill: var(--blue); }
+        .rp-chart .bar.today { fill: #0b57d0; }
+        .rp-chart .hit { fill: transparent; cursor: pointer; }
+        .rp-chart .hit:hover + .bar, .rp-chart .bar.active { fill: #0b57d0; }
+        .rp-chart text { font-size: 9.5px; fill: var(--muted); }
+        .rp-chart text.v { fill: var(--sub); font-weight: 600; }
+        .rp-chart .grid { stroke: #eef0f2; stroke-width: 1; }
+        .rp-chart .base { stroke: #dadce0; stroke-width: 1; }
+        .rp-chart-info { font-size: 12px; color: var(--sub); min-height: 18px; margin-top: 4px; text-align: center; }
+        .rp-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+        .rp-tools select { font-size: 12px; padding: 4px 6px; border: 1px solid #dadce0; border-radius: 8px; background: white; color: var(--text); }
+        .rp-tools label { font-size: 12px; color: var(--sub); display: flex; align-items: center; gap: 4px; }
+        .rp-tools label input { width: 14px; height: 14px; }
+        .rp-row { padding: 8px 2px; border-top: 1px solid var(--line); cursor: pointer; }
+        .rp-row:first-child { border-top: none; }
+        .rp-row:active, .rp-row:hover { background: #f7f9fb; }
+        .rp-row-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+        .rp-row-top b { font-weight: 600; color: var(--text); word-break: break-word; }
+        .rp-row-top span { color: var(--sub); font-size: 12px; white-space: nowrap; }
+        .rp-bar { height: 6px; background: #e8eaed; border-radius: 3px; margin: 5px 0 3px; overflow: hidden; }
+        .rp-bar i { display: block; height: 100%; background: var(--blue); border-radius: 3px; }
+        .rp-bar i.full { background: #188038; }
+        .rp-row-meta { font-size: 11px; color: var(--muted); }
+        .rp-done-tag { color: #188038; font-weight: 600; }
+        .rp-old { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); font-size: 12.5px; cursor: pointer; }
+        .rp-old:first-child { border-top: none; }
+        .rp-old .days { flex-shrink: 0; min-width: 44px; font-weight: 700; color: #b06000; font-size: 12px; }
+        .rp-old .txt { flex: 1; min-width: 0; word-break: break-word; color: var(--text); }
+        .rp-old .path { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
+        .rp-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 10px 0; }
+        .rp-actions { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
+        #textModal { z-index: 1200; }
+        .task-card.flash { animation: flash 1.6s ease; }
+        @keyframes flash { 0%, 60% { box-shadow: 0 0 0 2px var(--blue); } 100% { box-shadow: 0 1px 2px rgba(0,0,0,0.05); } }
+
         @keyframes blink { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
 
         @media (min-width: 600px) {
@@ -143,10 +204,12 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2>📋 每日工作記錄表 <span class="version-tag">v2.6</span><span class="today-stat" id="todayStat"></span></h2>
+            <h2>📋 每日工作記錄表 <span class="version-tag">v2.8</span><span class="today-stat" id="todayStat"></span></h2>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
+                    <div class="dropdown-item" onclick="openReport()">📊 <span>總覽報表</span></div>
+                    <div class="dropdown-divider"></div>
                     <div class="dropdown-item" id="itemEditMode" onclick="toggleEditMode()">⚙️ <span>開啟修改</span></div>
                     <div class="dropdown-item" id="itemCompleted" onclick="toggleCompleted()">👁️ <span>隱藏已完成</span></div>
                     <div class="dropdown-item" id="itemTime" onclick="toggleTime()">🕒 <span>顯示時間</span></div>
@@ -190,6 +253,11 @@
                 <button class="btn-outline" onclick="cancelListen()">取消</button>
             </div>
         </div>
+    </div>
+
+    <!-- 總覽報表 -->
+    <div id="reportModal" class="report-overlay" onclick="if(event.target===this) closeReport()">
+        <div class="report-sheet" id="reportSheet"></div>
     </div>
 
     <div id="textModal" class="modal-overlay" onclick="if(event.target===this) closeTextModal()">
@@ -361,10 +429,10 @@
         }
 
         // ---- 子項目全部完成 → 上層自動完成 ----
-        // 規則：
+        // 規則（v2.7）：有子任務的任務，完成狀態由子任務決定
         //  1. 孫任務全部打勾 → 次任務自動打勾；次任務全部打勾 → 主任務自動打勾（會一路往上連動）
-        //  2. 自動完成的項目，若之後有子項目取消打勾或新增未完成的子項目，會自動恢復成未完成
-        //  3. 手動打勾的上層項目（子項目還沒全部完成）不會被自動取消
+        //  2. 只要有任何子任務未完成（取消打勾、新增子任務），上層就自動恢復成未完成
+        //  3. 有未完成子任務時，上層不能手動打勾（見 toggleCheck）
         function autoStatus(parent, children) {
             if (!children || children.length === 0) return null;
             const allDone = children.every(c => c.checked);
@@ -373,7 +441,7 @@
                 parent.completedAt = Math.max(...children.map(c => c.completedAt || 0)) || Date.now();
                 return 'done';
             }
-            if (!allDone && parent.checked && parent.autoDone) {
+            if (!allDone && parent.checked) {
                 parent.checked = false; delete parent.autoDone; parent.completedAt = null;
                 return 'undone';
             }
@@ -695,9 +763,33 @@
                 if (firstDone === -1) list.push(target); else list.splice(firstDone, 0, target);
             }
         }
+        // 計算某項任務底下還有幾個未完成的子任務（主任務會一起算孫任務）
+        function pendingChildren(target, level) {
+            let n = 0;
+            if (level === 'main') target.subtasks.forEach(s => { if (!s.checked) n++; s.grandtasks.forEach(g => { if (!g.checked) n++; }); });
+            else if (level === 'sub') target.grandtasks.forEach(g => { if (!g.checked) n++; });
+            return n;
+        }
+        function childList(target, level) { return level === 'main' ? target.subtasks : level === 'sub' ? target.grandtasks : []; }
+
         function toggleCheck(id, level, parentId = null, grandParentId = null) {
             const target = getTarget(id, level, parentId, grandParentId);
             if (!target) return;
+            const children = childList(target, level);
+            if (children.length > 0) {
+                const n = pendingChildren(target, level);
+                const childName = level === 'main' ? '子任務' : '孫任務';
+                if (!target.checked && n > 0) {
+                    renderTasks();   // 把剛剛被點掉的勾選框恢復原狀
+                    showToast(`⚠️ 還有 ${n} 個未完成的${childName}\n全部完成後會自動標示完成`, 3000);
+                    return;
+                }
+                if (target.checked && n === 0) {
+                    renderTasks();
+                    showToast(`底下的${childName}都已完成，所以保持完成\n要重新開啟，請取消某個${childName}的勾選或新增${childName}`, 3800);
+                    return;
+                }
+            }
             target.checked = !target.checked;
             target.completedAt = target.checked ? Date.now() : null;
             delete target.autoDone;   // 手動打勾 / 取消，以使用者的選擇為準
@@ -716,6 +808,186 @@
             else if (level === 'sub') { const p = findMain(parentId); if (p) p.subtasks = p.subtasks.filter(s => s.id !== id); }
             else if (level === 'grand') { const p = findSub(grandParentId, parentId); if (p) p.grandtasks = p.grandtasks.filter(g => g.id !== id); }
             saveData();
+        }
+
+        // ---- 總覽報表 ----
+        // 「工作項目」= 最底層的任務：孫任務、沒有孫任務的次任務、沒有次任務的主任務。
+        // 用最底層計算，避免自動完成的上層任務被重複計算。
+        let reportSort = localStorage.getItem('work_reportSort') || 'progress';
+        let reportHideDone = localStorage.getItem('work_reportHideDone') === 'true';
+        const DAY = 86400000;
+        function startOfDay(ts) { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); }
+        function leavesOf(main) {
+            const out = [];
+            if (!main.subtasks.length) { out.push({ item: main, path: '', mainId: main.id }); return out; }
+            main.subtasks.forEach(s => {
+                if (!s.grandtasks.length) out.push({ item: s, path: main.text, mainId: main.id });
+                else s.grandtasks.forEach(g => out.push({ item: g, path: `${main.text} › ${s.text}`, mainId: main.id }));
+            });
+            return out;
+        }
+        function buildReport() {
+            const now = Date.now(), today = startOfDay(now);
+            const lvl = { main: [0, 0], sub: [0, 0], grand: [0, 0] };
+            tasks.forEach(t => { lvl.main[1]++; if (t.checked) lvl.main[0]++;
+                t.subtasks.forEach(s => { lvl.sub[1]++; if (s.checked) lvl.sub[0]++;
+                    s.grandtasks.forEach(g => { lvl.grand[1]++; if (g.checked) lvl.grand[0]++; }); }); });
+            const mains = tasks.map((t, i) => {
+                const lv = leavesOf(t);
+                const done = lv.filter(x => x.item.checked).length;
+                return { id: t.id, idx: i, text: t.text, checked: t.checked, total: lv.length, done,
+                         pct: lv.length ? Math.round(done / lv.length * 100) : 0, createdAt: t.createdAt || now, completedAt: t.completedAt, leaves: lv };
+            });
+            const leaves = mains.flatMap(m => m.leaves);
+            const leafDone = leaves.filter(x => x.item.checked);
+            const doneSince = from => leafDone.filter(x => x.item.completedAt && x.item.completedAt >= from).length;
+            const days = [];
+            for (let i = 13; i >= 0; i--) {
+                const d0 = today - i * DAY, d1 = d0 + DAY;
+                days.push({ ts: d0, n: leafDone.filter(x => x.item.completedAt >= d0 && x.item.completedAt < d1).length });
+            }
+            const oldest = leaves.filter(x => !x.item.checked)
+                .sort((a, b) => (a.item.createdAt || now) - (b.item.createdAt || now)).slice(0, 5)
+                .map(x => ({ ...x, days: Math.floor((now - (x.item.createdAt || now)) / DAY) }));
+            return { now, today, lvl, mains, total: leaves.length, done: leafDone.length,
+                     pct: leaves.length ? Math.round(leafDone.length / leaves.length * 100) : 0,
+                     todayN: doneSince(today), week: doneSince(today - 6 * DAY), month: doneSince(today - 29 * DAY), days, oldest };
+        }
+        function fmtMD(ts) { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()}`; }
+        function ringSvg(pct) {
+            const r = 32, c = 2 * Math.PI * r, len = c * pct / 100;
+            return `<svg class="rp-ring" viewBox="0 0 76 76" aria-hidden="true">
+                <circle cx="38" cy="38" r="${r}" fill="none" stroke="#e8eaed" stroke-width="8"/>
+                <circle cx="38" cy="38" r="${r}" fill="none" stroke="${pct === 100 ? '#188038' : '#1a73e8'}" stroke-width="8" stroke-linecap="round"
+                    stroke-dasharray="${len} ${c}" transform="rotate(-90 38 38)"/></svg>`;
+        }
+        function barChartSvg(days) {
+            const W = 320, H = 130, top = 16, bottom = 20, left = 4, right = 4;
+            const max = Math.max(1, ...days.map(d => d.n));
+            const step = (W - left - right) / days.length, bw = Math.max(6, step - 6);
+            const y = v => top + (H - top - bottom) * (1 - v / max);
+            let g = `<line class="grid" x1="${left}" x2="${W - right}" y1="${y(max)}" y2="${y(max)}"/>`;
+            g += `<text x="${W - right}" y="${y(max) - 4}" text-anchor="end">${max}</text>`;
+            days.forEach((d, i) => {
+                const x = left + i * step + (step - bw) / 2, yy = y(d.n), h = H - bottom - yy;
+                const isToday = i === days.length - 1;
+                // 4px 圓角只在頂端，底部貼齊基線
+                const bar = d.n > 0
+                    ? `<path class="bar${isToday ? ' today' : ''}" data-i="${i}" d="M${x},${H - bottom} V${yy + Math.min(4, h)} Q${x},${yy} ${x + Math.min(4, bw / 2)},${yy} H${x + bw - Math.min(4, bw / 2)} Q${x + bw},${yy} ${x + bw},${yy + Math.min(4, h)} V${H - bottom} Z"/>`
+                    : '';
+                g += `<rect class="hit" x="${left + i * step}" y="${top}" width="${step}" height="${H - top}" data-i="${i}"/>` + bar;
+                if (d.n > 0 && (d.n === max || isToday)) g += `<text class="v" x="${x + bw / 2}" y="${yy - 3}" text-anchor="middle">${d.n}</text>`;
+                if (i % 2 === 1 || isToday) g += `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${isToday ? '今天' : fmtMD(d.ts)}</text>`;
+            });
+            g += `<line class="base" x1="${left}" x2="${W - right}" y1="${H - bottom}" y2="${H - bottom}"/>`;
+            return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="最近 14 天每天完成的工作項目數">${g}</svg>`;
+        }
+        function renderReport() {
+            const r = buildReport();
+            const tile = (lbl, [d, t]) => `<div class="rp-tile"><div class="lbl">${lbl}</div><div class="val">${d}<small> / ${t}</small></div><div class="rp-mini"><i style="width:${t ? d / t * 100 : 0}%"></i></div></div>`;
+            const sorters = {
+                progress: (a, b) => (a.checked - b.checked) || (a.pct - b.pct) || (a.idx - b.idx),
+                remain: (a, b) => (a.checked - b.checked) || ((b.total - b.done) - (a.total - a.done)) || (a.idx - b.idx),
+                oldest: (a, b) => (a.checked - b.checked) || (a.createdAt - b.createdAt),
+                order: (a, b) => a.idx - b.idx
+            };
+            const list = r.mains.filter(m => !(reportHideDone && m.checked)).sort(sorters[reportSort] || sorters.progress);
+            const rows = list.map(m => {
+                const age = Math.floor((r.now - m.createdAt) / DAY);
+                const meta = m.checked
+                    ? `<span class="rp-done-tag">✓ 已完成</span>${m.completedAt ? ` · ${fmtMD(m.completedAt)} 完成` : ''}`
+                    : `剩 ${m.total - m.done} 項 · 已進行 ${age} 天`;
+                return `<div class="rp-row" onclick="jumpToTask(${m.id})">
+                    <div class="rp-row-top"><b>${escapeHtml(m.text)}</b><span>${m.done}/${m.total} · ${m.pct}%</span></div>
+                    <div class="rp-bar"><i class="${m.pct === 100 ? 'full' : ''}" style="width:${m.pct}%"></i></div>
+                    <div class="rp-row-meta">${meta}</div></div>`;
+            }).join('') || `<div class="rp-empty">${tasks.length ? '主任務都已完成 🎉' : '還沒有任務'}</div>`;
+            const oldRows = r.oldest.map(o => {
+                return `<div class="rp-old" onclick="jumpToTask(${o.mainId})"><span class="days">${o.days} 天</span>
+                    <span class="txt">${escapeHtml(o.item.text)}${o.path ? `<span class="path">${escapeHtml(o.path)}</span>` : ''}</span></div>`;
+            }).join('') || '<div class="rp-empty">沒有未完成的工作項目 🎉</div>';
+            const d = new Date(r.now);
+            document.getElementById('reportSheet').innerHTML = `
+                <div class="rp-head"><h3>📊 總覽報表<small>${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} 統計</small></h3><button class="rp-close" onclick="closeReport()" title="關閉">×</button></div>
+                <div class="rp-card">
+                    <div class="rp-hero">${ringSvg(r.pct)}
+                        <div><div class="rp-hero-num">${r.pct}%</div>
+                        <div class="rp-hero-sub">整體完成率<br>${r.done} / ${r.total} 個工作項目已完成</div></div></div>
+                    <div class="rp-tiles">${tile('主任務', r.lvl.main)}${tile('次任務', r.lvl.sub)}${tile('孫任務', r.lvl.grand)}</div>
+                </div>
+                <div class="rp-card">
+                    <h4>完成的工作項目</h4>
+                    <div class="rp-tiles" style="margin-top:0">
+                        <div class="rp-tile"><div class="lbl">今天</div><div class="val">${r.todayN}</div></div>
+                        <div class="rp-tile"><div class="lbl">近 7 天</div><div class="val">${r.week}</div></div>
+                        <div class="rp-tile"><div class="lbl">近 30 天</div><div class="val">${r.month}</div></div>
+                    </div>
+                </div>
+                <div class="rp-card">
+                    <h4>最近 14 天每天完成數<small>點長條看數字</small></h4>
+                    <div class="rp-chart" id="rpChart">${barChartSvg(r.days)}</div>
+                    <div class="rp-chart-info" id="rpChartInfo">14 天共完成 ${r.days.reduce((a, b) => a + b.n, 0)} 項</div>
+                </div>
+                <div class="rp-card">
+                    <h4>各主任務進度<small>點一下跳到該任務</small></h4>
+                    <div class="rp-tools">
+                        <select onchange="setReportSort(this.value)">
+                            <option value="progress" ${reportSort === 'progress' ? 'selected' : ''}>進度低 → 高</option>
+                            <option value="remain" ${reportSort === 'remain' ? 'selected' : ''}>剩餘項目多 → 少</option>
+                            <option value="oldest" ${reportSort === 'oldest' ? 'selected' : ''}>建立最久 → 最新</option>
+                            <option value="order" ${reportSort === 'order' ? 'selected' : ''}>清單順序</option>
+                        </select>
+                        <label><input type="checkbox" ${reportHideDone ? 'checked' : ''} onchange="setReportHideDone(this.checked)">隱藏已完成</label>
+                    </div>
+                    ${rows}
+                </div>
+                <div class="rp-card">
+                    <h4>拖最久的未完成項目<small>依建立時間</small></h4>
+                    ${oldRows}
+                </div>
+                <div class="rp-actions"><button class="btn-primary" onclick="copyReportText()">📋 複製報表文字</button><button class="btn-outline" onclick="closeReport()">關閉</button></div>`;
+            // 長條圖：點或滑過顯示當天數字
+            const info = document.getElementById('rpChartInfo');
+            document.querySelectorAll('#rpChart .hit').forEach(h => {
+                const show = () => {
+                    const i = +h.dataset.i, day = r.days[i];
+                    document.querySelectorAll('#rpChart .bar').forEach(b => b.classList.toggle('active', +b.dataset.i === i));
+                    info.textContent = `${i === r.days.length - 1 ? '今天' : fmtMD(day.ts)}（${'日一二三四五六'[new Date(day.ts).getDay()]}）：完成 ${day.n} 項`;
+                };
+                h.addEventListener('click', show); h.addEventListener('mouseenter', show);
+            });
+            return r;
+        }
+        function openReport() { renderReport(); document.getElementById('reportModal').style.display = 'flex'; document.getElementById('reportSheet').scrollTop = 0; }
+        function closeReport() { document.getElementById('reportModal').style.display = 'none'; }
+        function setReportSort(v) { reportSort = v; localStorage.setItem('work_reportSort', v); const st = document.getElementById('reportSheet').scrollTop; renderReport(); document.getElementById('reportSheet').scrollTop = st; }
+        function setReportHideDone(v) { reportHideDone = v; localStorage.setItem('work_reportHideDone', v); const st = document.getElementById('reportSheet').scrollTop; renderReport(); document.getElementById('reportSheet').scrollTop = st; }
+        function jumpToTask(id) {
+            const t = findMain(id); if (!t) return;
+            closeReport();
+            if (t.collapsed) { t.collapsed = false; saveData(); }
+            if (t.checked && isHideCompleted) showToast('這個任務已完成，目前被「隱藏已完成」隱藏了', 2500);
+            const card = document.querySelector(`.task-card[data-id="${id}"]`);
+            if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
+        }
+        async function copyReportText() {
+            const r = buildReport(), d = new Date(r.now);
+            const lines = [`📊 每日工作記錄 總覽（${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}）`,
+                `整體完成率 ${r.pct}%（${r.done}/${r.total} 個工作項目）`,
+                `主任務 ${r.lvl.main[0]}/${r.lvl.main[1]}、次任務 ${r.lvl.sub[0]}/${r.lvl.sub[1]}、孫任務 ${r.lvl.grand[0]}/${r.lvl.grand[1]}`,
+                `完成數：今天 ${r.todayN}、近 7 天 ${r.week}、近 30 天 ${r.month}`, '', '【進行中】'];
+            const open = r.mains.filter(m => !m.checked).sort((a, b) => a.pct - b.pct || a.idx - b.idx);
+            open.forEach(m => lines.push(`・${m.text}：${m.done}/${m.total}（${m.pct}%），剩 ${m.total - m.done} 項`));
+            if (!open.length) lines.push('・（全部完成）');
+            const done = r.mains.filter(m => m.checked);
+            if (done.length) { lines.push('', '【已完成】'); done.forEach(m => lines.push(`・${m.text}${m.completedAt ? `（${fmtMD(m.completedAt)}）` : ''}`)); }
+            if (r.oldest.length) { lines.push('', '【拖最久的未完成項目】'); r.oldest.forEach(o => lines.push(`・${o.item.text}${o.path ? `（${o.path}）` : ''}：${o.days} 天`)); }
+            const text = lines.join('\n');
+            try { await navigator.clipboard.writeText(text); showToast('✅ 已複製報表文字，可以貼到 LINE 或 Email', 2500); }
+            catch (e) { document.getElementById('tmTitle').textContent = '📋 報表文字'; document.getElementById('tmHint').textContent = '請長按全選後複製。';
+                const ta = document.getElementById('tmTextarea'); ta.value = text; ta.readOnly = true;
+                const btn = document.getElementById('tmAction'); btn.textContent = '關閉'; btn.onclick = closeTextModal;
+                document.getElementById('textModal').style.display = 'flex'; }
         }
 
         // ---- 畫面繪製 ----
@@ -759,7 +1031,7 @@
                     <div class="task-row main-row">
                         <div class="drag-handle main-handle">☰</div>
                         ${toggle}
-                        <input type="checkbox" ${task.checked ? 'checked' : ''} onchange="toggleCheck(${task.id}, 'main')">
+                        <input type="checkbox" class="${!task.checked && pendingChildren(task, 'main') ? 'locked' : ''}" ${task.checked ? 'checked' : ''} onchange="toggleCheck(${task.id}, 'main')" title="${!task.checked && pendingChildren(task, 'main') ? '還有未完成的子任務' : ''}">
                         <div class="task-text main-task-text ${task.checked ? 'completed' : ''}" onclick="editTask(${task.id}, 'main')" title="點一下修改文字">
                             ${escapeHtml(task.text)}${progressTag(task.subtasks)} ${getTimeBadgeHtml(task)}
                         </div>
@@ -780,7 +1052,7 @@
                             <div class="task-row subtask-row">
                                 <div class="drag-handle sub-handle">☰</div>
                                 ${subToggle}
-                                <input type="checkbox" ${sub.checked ? 'checked' : ''} onchange="toggleCheck(${sub.id}, 'sub', ${task.id})">
+                                <input type="checkbox" class="${!sub.checked && pendingChildren(sub, 'sub') ? 'locked' : ''}" ${sub.checked ? 'checked' : ''} onchange="toggleCheck(${sub.id}, 'sub', ${task.id})" title="${!sub.checked && pendingChildren(sub, 'sub') ? '還有未完成的孫任務' : ''}">
                                 <div class="task-text sub-task-text ${sub.checked ? 'completed' : ''}" onclick="editTask(${sub.id}, 'sub', ${task.id})" title="點一下修改文字">
                                     ${escapeHtml(sub.text)}${progressTag(sub.grandtasks)} ${getTimeBadgeHtml(sub)}
                                 </div>
@@ -830,6 +1102,14 @@
             } catch (e) { console.error('拖曳功能初始化失敗:', e); }
         }
 
+        // 開啟時依子任務狀態校正上層任務（舊資料可能有「上層已勾、子任務未完成」的情況）
+        (function initialAutoComplete() {
+            const changes = applyAutoComplete();
+            if (changes.length) {
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch (e) {}
+                setTimeout(() => autoCompleteToast(changes), 500);
+            }
+        })();
         initTimeBtn(); initToggleBtn(); renderTasks(); checkBackupReminder();
 
         // 從主畫面捷徑「新增任務」開啟時，直接把游標放到輸入框
