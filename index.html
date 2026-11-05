@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.5</title>
+    <title>每日工作記錄表 v2.6</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -143,7 +143,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2>📋 每日工作記錄表 <span class="version-tag">v2.5</span><span class="today-stat" id="todayStat"></span></h2>
+            <h2>📋 每日工作記錄表 <span class="version-tag">v2.6</span><span class="today-stat" id="todayStat"></span></h2>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -360,7 +360,50 @@
             document.getElementById('itemCompleted').innerHTML = `👁️ <span>${isHideCompleted ? '顯示已完成' : '隱藏已完成'}</span>`;
         }
 
+        // ---- 子項目全部完成 → 上層自動完成 ----
+        // 規則：
+        //  1. 孫任務全部打勾 → 次任務自動打勾；次任務全部打勾 → 主任務自動打勾（會一路往上連動）
+        //  2. 自動完成的項目，若之後有子項目取消打勾或新增未完成的子項目，會自動恢復成未完成
+        //  3. 手動打勾的上層項目（子項目還沒全部完成）不會被自動取消
+        function autoStatus(parent, children) {
+            if (!children || children.length === 0) return null;
+            const allDone = children.every(c => c.checked);
+            if (allDone && !parent.checked) {
+                parent.checked = true; parent.autoDone = true;
+                parent.completedAt = Math.max(...children.map(c => c.completedAt || 0)) || Date.now();
+                return 'done';
+            }
+            if (!allDone && parent.checked && parent.autoDone) {
+                parent.checked = false; delete parent.autoDone; parent.completedAt = null;
+                return 'undone';
+            }
+            return null;
+        }
+        function applyAutoComplete() {
+            const changes = [];
+            tasks.slice().forEach(main => {
+                main.subtasks.slice().forEach(sub => {
+                    const r = autoStatus(sub, sub.grandtasks);
+                    if (r) { reorderAfterCheck(main.subtasks, sub); changes.push({ r, text: sub.text, level: '次任務' }); }
+                });
+                const r = autoStatus(main, main.subtasks);
+                if (r) { reorderAfterCheck(tasks, main); changes.push({ r, text: main.text, level: '主任務' }); }
+            });
+            return changes;
+        }
+        function autoCompleteToast(changes) {
+            if (!changes.length) return;
+            const done = changes.filter(c => c.r === 'done'), undone = changes.filter(c => c.r === 'undone');
+            const lines = [];
+            if (done.length === 1) lines.push(`🎉「${done[0].text}」底下全部完成，已自動標示完成`);
+            else if (done.length > 1) lines.push(`🎉 ${done.length} 個項目底下全部完成，已自動標示完成`);
+            if (undone.length === 1) lines.push(`↩️「${undone[0].text}」還有未完成的項目，已恢復為未完成`);
+            else if (undone.length > 1) lines.push(`↩️ ${undone.length} 個項目還有未完成的項目，已恢復為未完成`);
+            showToast(lines.join('\n'), 3000);
+        }
+
         function saveData() {
+            autoCompleteToast(applyAutoComplete());
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
             catch (e) { alert('儲存失敗（瀏覽器儲存空間可能已滿），請先下載備份。'); }
             renderTasks();
@@ -657,6 +700,7 @@
             if (!target) return;
             target.checked = !target.checked;
             target.completedAt = target.checked ? Date.now() : null;
+            delete target.autoDone;   // 手動打勾 / 取消，以使用者的選擇為準
             const list = getSiblingList(level, parentId, grandParentId);
             if (list) reorderAfterCheck(list, target);
             saveData();
