@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.4</title>
+    <title>每日工作記錄表 v2.5</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -143,7 +143,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2>📋 每日工作記錄表 <span class="version-tag">v2.4</span><span class="today-stat" id="todayStat"></span></h2>
+            <h2>📋 每日工作記錄表 <span class="version-tag">v2.5</span><span class="today-stat" id="todayStat"></span></h2>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -632,9 +632,34 @@
             const nt = prompt('請修改任務內容：', target.text);
             if (nt !== null && nt.trim()) { target.text = nt.trim(); saveData(); }
         }
+        // 取得某項任務所在的那一層清單（主任務清單、某主任務的次任務、某次任務的孫任務）
+        function getSiblingList(level, parentId, grandParentId) {
+            if (level === 'main') return tasks;
+            if (level === 'sub') { const p = findMain(parentId); return p ? p.subtasks : null; }
+            if (level === 'grand') { const p = findSub(grandParentId, parentId); return p ? p.grandtasks : null; }
+            return null;
+        }
+        // 打勾完成：移到同一層的最下方
+        // 取消打勾：移回「未完成」區的最後面（已完成項目的上方）
+        function reorderAfterCheck(list, target) {
+            const idx = list.indexOf(target);
+            if (idx === -1) return;
+            list.splice(idx, 1);
+            if (target.checked) {
+                list.push(target);
+            } else {
+                const firstDone = list.findIndex(x => x.checked);
+                if (firstDone === -1) list.push(target); else list.splice(firstDone, 0, target);
+            }
+        }
         function toggleCheck(id, level, parentId = null, grandParentId = null) {
             const target = getTarget(id, level, parentId, grandParentId);
-            if (target) { target.checked = !target.checked; target.completedAt = target.checked ? Date.now() : null; saveData(); }
+            if (!target) return;
+            target.checked = !target.checked;
+            target.completedAt = target.checked ? Date.now() : null;
+            const list = getSiblingList(level, parentId, grandParentId);
+            if (list) reorderAfterCheck(list, target);
+            saveData();
         }
         function deleteTask(id, level, parentId = null, grandParentId = null) {
             const target = getTarget(id, level, parentId, grandParentId);
