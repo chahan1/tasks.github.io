@@ -1,10 +1,10 @@
-# 每日工作記錄表 v2.9：PWA 與 Android APK 打包說明
+# 每日工作記錄表 v2.9.1：PWA 與 Android APK 打包說明
 
 ## 資料夾內容
 
 | 檔案 | 用途 |
 |---|---|
-| `index.html` | App 本體（v2.9，已加上 manifest 連結與 Service Worker 註冊） |
+| `index.html` | App 本體（v2.9.1，已加上 manifest 連結與 Service Worker 註冊） |
 | `manifest.json` | PWA 設定：名稱、圖示、主題色、截圖、捷徑 |
 | `sw.js` | Service Worker：讓 App 可安裝、可離線開啟 |
 | `sortable.min.js` | 拖曳排序套件 SortableJS 1.15.6（MIT 授權），放在本機，離線也能拖曳 |
@@ -68,7 +68,7 @@
 
 - **☁️ 備份到 Google Drive**：使用手機的「分享」功能，在分享選單選「**雲端硬碟**」，再選擇 Google 帳號和資料夾，就能直接存進 Google Drive，不需要任何設定。備份檔是 `.txt`，內容是 JSON；Android 的分享功能不接受 `.json` 檔，所以改用 `.txt`。電腦或不支援分享的瀏覽器會自動改為下載。
 - **📥 下載備份檔到手機**：存成 `.json` 檔，放在手機的「下載」資料夾。
-- **📂 從備份檔還原**：在檔案選擇畫面點左上角 ☰，選「**雲端硬碟**」，就能直接選 Google Drive 裡的備份檔，`.txt` 或 `.json` 都可以。
+- **📂 從備份檔還原（可選 Drive）**：在檔案選擇畫面點左上角 ☰，選「**雲端硬碟**」，就能直接選 Google Drive 裡的備份檔，`.txt` 或 `.json` 都可以。
 - **📋 複製備份文字／📝 貼上文字還原**：以上方式都不能用時的備用方案。
 - 超過 7 天沒備份，畫面上方會出現提醒，按「立即備份」會優先使用 Google Drive 分享。
 
@@ -122,5 +122,5 @@
 
 - **資料存在手機裡**：APK 透過手機上的 Chrome 執行，通常會和 Chrome 開同一個網址時共用資料。但如果清除 Chrome 資料、換了網址或手機沒有 Chrome，資料就會不同。安裝 APK 前，建議先用「下載備份檔」或「複製備份文字」備份一份，必要時再還原。
 - **語音輸入**：APK 實際上是由手機上的 Chrome 執行，所以語音辨識跟 Chrome 一樣需要網路；離線時會自動改用鍵盤輸入。
-- **更新 App**：修改 `index.html` 後，請把 `sw.js` 第 3 行的 `worklog-v2.9` 改成新的版本號（例如 `worklog-v3.0`）再上傳，手機下次開啟時就會更新。只改網站內容不需要重新產生 APK。
+- **更新 App**：修改 `index.html` 後，請把 `sw.js` 第 3 行的 `worklog-v2.9.1` 改成新的版本號（例如 `worklog-v3.0`）再上傳，手機下次開啟時就會更新。只改網站內容不需要重新產生 APK。
 - **拖曳套件**：v2.9 起 SortableJS 直接放在 App 檔案裡（`sortable.min.js`），不必連網也能拖曳。更新時請記得一起上傳這個檔案。

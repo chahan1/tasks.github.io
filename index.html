@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.9</title>
+    <title>每日工作記錄表 v2.9.1</title>
     <script src="sortable.min.js"></script><!-- SortableJS 1.15.6（MIT），放在本機，離線也能拖曳 -->
     <style>
         * { box-sizing: border-box; }
@@ -36,11 +36,13 @@
         .menu-wrapper { position: relative; }
         .three-dots-btn { background: transparent; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #5f6368; }
         .three-dots-btn:active, .three-dots-btn:hover { background: #e8eaed; }
-        .dropdown-menu { display: none; position: absolute; right: 0; top: 34px; background: white; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.14); width: 176px; padding: 4px 0; z-index: 200; }
+        .dropdown-menu { display: none; position: absolute; right: 0; top: 34px; background: white; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.14); width: 228px; padding: 4px 0; z-index: 200; }
         .dropdown-menu.show { display: block; }
         .dropdown-item { padding: 9px 14px; font-size: 13px; color: #3c4043; cursor: pointer; display: flex; align-items: center; gap: 8px; }
         .dropdown-item:active, .dropdown-item:hover { background-color: var(--blue-light); color: var(--blue); }
         .dropdown-divider { height: 1px; background: var(--line); margin: 4px 0; }
+        .dropdown-label { font-size: 10.5px; color: #9aa0a6; padding: 6px 14px 2px; }
+        .dropdown-menu { max-height: calc(100vh - 60px); overflow-y: auto; }
 
         .input-group { display: flex; gap: 6px; align-items: center; }
         input[type="text"] { flex: 1; min-width: 0; height: 34px; padding: 0 12px; border: 1px solid #e0e3e6; border-radius: 17px; font-size: 13.5px; background: white; outline: none; color: var(--text); }
@@ -213,7 +215,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2>📋 每日工作記錄表 <span class="version-tag">v2.9</span><span class="today-stat" id="todayStat"></span></h2>
+            <h2>📋 每日工作記錄表 <span class="version-tag">v2.9.1</span><span class="today-stat" id="todayStat"></span></h2>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -223,11 +225,12 @@
                     <div class="dropdown-item" id="itemCompleted" onclick="toggleCompleted()">👁️ <span>隱藏已完成</span></div>
                     <div class="dropdown-item" id="itemTime" onclick="toggleTime()">🕒 <span>顯示時間</span></div>
                     <div class="dropdown-item" onclick="setAllCollapsed(true)">🗂️ <span>全部收合</span></div>
-                    <div class="dropdown-item" onclick="setAllCollapsed(false)">📂 <span>全部展開</span></div>
+                    <div class="dropdown-item" onclick="setAllCollapsed(false)">📑 <span>全部展開</span></div>
                     <div class="dropdown-divider"></div>
+                    <div class="dropdown-label">備份</div>
                     <div class="dropdown-item" onclick="shareBackupToDrive()">☁️ <span>備份到 Google Drive</span></div>
                     <div class="dropdown-item" onclick="downloadBackup()">📥 <span>下載備份檔到手機</span></div>
-                    <div class="dropdown-item" onclick="openRestore()">📂 <span>從備份檔還原</span></div>
+                    <div class="dropdown-item" onclick="openRestore()">📂 <span>從備份檔還原（可選 Drive）</span></div>
                     <div class="dropdown-item" onclick="openTextModal('export')">📋 <span>複製備份文字</span></div>
                     <div class="dropdown-item" onclick="openTextModal('import')">📝 <span>貼上文字還原</span></div>
                 </div>
