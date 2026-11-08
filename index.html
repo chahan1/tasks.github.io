@@ -12,7 +12,8 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.10.0</title>
+    <title>每日工作記錄表 v2.10.1</title>
+    <script>try{var t=localStorage.getItem("wl_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
     <script src="sortable.min.js"></script><!-- SortableJS 1.15.6（MIT），放在本機，離線也能拖曳 -->
     <style>
         /* Hallmark v2.0.0 (condensed) | shape: app screen | screen: daily task list with progress and the report | signature: the day's task card with its progress tag | tokens: generated from the existing palette, neutrals tinted to the work-log blue, with a dark scheme | type: system sans, one family */
@@ -20,7 +21,7 @@
         /* Hallmark · waive 24b · paddings of 2, 6, 10 and 14px in the task rows and progress tags · the owner logs many short work items a day and keeps this compact task list rhythm */
         :root {
             color-scheme: light dark;
-            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', Helvetica, Arial, sans-serif;
+            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', Helvetica, Arial, sans-serif; --on-ring: transparent;
             --c-f5f7f8: #f5f7f9;
             --c-5f6368: #606367;
             --c-e8eaed: #e7eaef;
@@ -65,55 +66,107 @@
             --c-2b2f33: #2c2f33;
             --c-f9ab00: #f9ab00;
             --c-137333: #137333;
+            --c-107c41: #107c41;
             --blue: var(--c-1a73e8); --blue-light: var(--c-e8f0fe); --blue-line: var(--c-d2e3fc); --sub: var(--c-3c4043); --line: var(--c-eef0f2); --muted: var(--c-8a9096); --text: var(--c-2b2f33);
             --star: var(--c-f9ab00); --ok: var(--c-137333); --bad: var(--c-d93025); --warn: var(--c-b06000); --ai: var(--c-1a73e8);
         }
-        @media (prefers-color-scheme: dark) {
-            :root {
-            --c-f5f7f8: #121419;
+        :root[data-theme="light"] { color-scheme: light; }
+        :root[data-theme="dark"] {
+            color-scheme: dark; --on-ring: var(--c-1a73e8);
+            --c-f5f7f8: #26292e;
             --c-5f6368: #babec6;
-            --c-e8eaed: #1a1c21;
-            --c-ffffff: #0d0f14;
+            --c-e8eaed: #1f2126;
+            --c-ffffff: #2b2e33;
             --c-000000-14: rgba(0,0,0,0.22);
             --c-3c4043: #c6cbd3;
             --c-9aa0a6: #9498a0;
-            --c-e0e3e6: #1e2126;
+            --c-e0e3e6: #1b1d22;
             --c-a8adb2: #9498a0;
             --c-1a73e8-12: rgba(120,173,249,0.12);
-            --c-dadce0: #23252a;
+            --c-dadce0: #171a1e;
             --c-4285f4: #5f9bff;
             --c-d93025: #ff7e6d;
             --c-000000-5: rgba(0,0,0,0.08);
             --c-b0b5ba: #9498a0;
-            --c-d5d9dd: #25282c;
-            --c-f1f3f4: #14171b;
+            --c-d5d9dd: #15181c;
+            --c-f1f3f4: #24272b;
             --c-188038: #71cf83;
-            --c-e6f4ea: #131b15;
+            --c-e6f4ea: #1f2721;
             --c-e06055: #eb6c60;
-            --c-fff8e1: #171306;
-            --c-fde7a9: #241c05;
+            --c-fff8e1: #2e291b;
+            --c-fde7a9: #282007;
             --c-7a5b00: #debc72;
             --c-202124-92: rgba(207,212,220,0.92);
             --c-000000-45: rgba(0,0,0,0.6);
             --c-000000-15: rgba(0,0,0,0.24);
             --c-80868b: #9ca1a8;
-            --c-dddddd: #222529;
+            --c-dddddd: #181a1f;
             --c-d93025-45: rgba(255,126,109,0.45);
             --c-d93025-0: rgba(255,126,109,0.0);
-            --c-f7f9fb: #111318;
+            --c-f7f9fb: #272a2f;
             --c-0b57d0: #9bc0fe;
-            --c-eef0f2: #16191d;
+            --c-eef0f2: #22252a;
             --c-b06000: #ea954c;
             --c-323639: #c9cdd5;
             --c-000000-25: rgba(0,0,0,0.4);
             --c-8ab4f8: #7099db;
             --c-1a73e8: #78adf9;
-            --c-e8f0fe: #151921;
-            --c-d2e3fc: #182231;
+            --c-e8f0fe: #20252d;
+            --c-d2e3fc: #131d2b;
             --c-8a9096: #9498a0;
             --c-2b2f33: #cbcfd7;
             --c-f9ab00: #c78b1c;
             --c-137333: #82d892;
+            --c-107c41: #74d191;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                color-scheme: dark; --on-ring: var(--c-1a73e8);
+            --c-f5f7f8: #26292e;
+            --c-5f6368: #babec6;
+            --c-e8eaed: #1f2126;
+            --c-ffffff: #2b2e33;
+            --c-000000-14: rgba(0,0,0,0.22);
+            --c-3c4043: #c6cbd3;
+            --c-9aa0a6: #9498a0;
+            --c-e0e3e6: #1b1d22;
+            --c-a8adb2: #9498a0;
+            --c-1a73e8-12: rgba(120,173,249,0.12);
+            --c-dadce0: #171a1e;
+            --c-4285f4: #5f9bff;
+            --c-d93025: #ff7e6d;
+            --c-000000-5: rgba(0,0,0,0.08);
+            --c-b0b5ba: #9498a0;
+            --c-d5d9dd: #15181c;
+            --c-f1f3f4: #24272b;
+            --c-188038: #71cf83;
+            --c-e6f4ea: #1f2721;
+            --c-e06055: #eb6c60;
+            --c-fff8e1: #2e291b;
+            --c-fde7a9: #282007;
+            --c-7a5b00: #debc72;
+            --c-202124-92: rgba(207,212,220,0.92);
+            --c-000000-45: rgba(0,0,0,0.6);
+            --c-000000-15: rgba(0,0,0,0.24);
+            --c-80868b: #9ca1a8;
+            --c-dddddd: #181a1f;
+            --c-d93025-45: rgba(255,126,109,0.45);
+            --c-d93025-0: rgba(255,126,109,0.0);
+            --c-f7f9fb: #272a2f;
+            --c-0b57d0: #9bc0fe;
+            --c-eef0f2: #22252a;
+            --c-b06000: #ea954c;
+            --c-323639: #c9cdd5;
+            --c-000000-25: rgba(0,0,0,0.4);
+            --c-8ab4f8: #7099db;
+            --c-1a73e8: #78adf9;
+            --c-e8f0fe: #20252d;
+            --c-d2e3fc: #131d2b;
+            --c-8a9096: #9498a0;
+            --c-2b2f33: #cbcfd7;
+            --c-f9ab00: #c78b1c;
+            --c-137333: #82d892;
+            --c-107c41: #74d191;
             }
         }
 
@@ -327,6 +380,10 @@
         .header-container .version-tag { margin-right: auto; margin-left: 6px; }
         .rp-hero-num { font-variant-numeric: tabular-nums; }
         .today-stat:not(:empty) { margin-left: 8px; font-weight: 400; }
+        .theme-seg { display: flex; gap: 4px; margin: 2px 12px 8px; padding: 3px; border-radius: 10px; background: var(--line); }
+        .theme-seg button { flex: 1; border: none; background: transparent; padding: 6px 2px; border-radius: 8px; font-size: 12px; color: var(--sub); cursor: pointer; }
+        .theme-seg button.on { background: var(--c-ffffff); color: var(--blue); font-weight: 600; box-shadow: 0 1px 2px var(--c-000000-14), inset 0 0 0 1.5px var(--on-ring); }
+        .seg button.on { box-shadow: 0 1px 2px var(--c-000000-14), inset 0 0 0 1.5px var(--on-ring); }
         h1, h2, h3, .cz-title { text-wrap: balance; overflow-wrap: break-word; min-width: 0; }
         :where(button, a, [onclick], input, select, textarea, summary):focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; transition: none; }
         input[type="text"]:focus, .search-box input:focus { outline: 2px solid var(--blue); outline-offset: 0; }
@@ -341,7 +398,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> 每日工作記錄表<span class="today-stat" id="todayStat"></span></h2><span class="version-tag">v2.10.0</span>
+            <h2><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> 每日工作記錄表<span class="today-stat" id="todayStat"></span></h2><span class="version-tag">v2.10.1</span>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -352,6 +409,13 @@
                     <div class="dropdown-item" id="itemTime" onclick="toggleTime()"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clock"/></svg> <span>顯示時間</span></div>
                     <div class="dropdown-item" onclick="setAllCollapsed(true)"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-collapse"/></svg> <span>全部收合</span></div>
                     <div class="dropdown-item" onclick="setAllCollapsed(false)"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-expand"/></svg> <span>全部展開</span></div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-label">外觀</div>
+                    <div class="theme-seg" id="themeSeg">
+                        <button data-v="auto" onclick="setTheme('auto')">跟隨手機</button>
+                        <button data-v="light" onclick="setTheme('light')">淺色</button>
+                        <button data-v="dark" onclick="setTheme('dark')">深色</button>
+                    </div>
                     <div class="dropdown-divider"></div>
                     <div class="dropdown-label">備份</div>
                     <div class="dropdown-item" onclick="shareBackupToDrive()"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-cloud"/></svg> <span>備份到 Google Drive</span></div>
@@ -596,7 +660,15 @@
         }
 
         // ---- 三點選單 ----
-        function toggleDropdown(e) { e.stopPropagation(); document.getElementById('dropdownMenu').classList.toggle('show'); }
+        // ---- 外觀：跟隨手機／淺色／深色（記在 wl_theme）----
+        function currentTheme() { try { return localStorage.getItem('wl_theme') || 'auto'; } catch (e) { return 'auto'; } }
+        function renderThemeSeg() { const cur = currentTheme(); document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === cur)); }
+        function setTheme(t) {
+            try { t === 'auto' ? localStorage.removeItem('wl_theme') : localStorage.setItem('wl_theme', t); } catch (e) {}
+            if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+            renderThemeSeg();
+        }
+        function toggleDropdown(e) { renderThemeSeg(); e.stopPropagation(); document.getElementById('dropdownMenu').classList.toggle('show'); }
         window.addEventListener('click', () => { const m = document.getElementById('dropdownMenu'); if (m.classList.contains('show')) m.classList.remove('show'); });
 
         function formatTime(ts) {

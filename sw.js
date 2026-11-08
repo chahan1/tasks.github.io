@@ -1,6 +1,6 @@
 // 每日工作記錄表 - Service Worker
 // 更新程式後，請把版本號 +1，手機才會載入新版
-const CACHE = 'worklog-v2.10.0';
+const CACHE = 'worklog-v2.10.1';
 const CORE = [
   './',
   './index.html',
