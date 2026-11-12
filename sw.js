@@ -1,6 +1,6 @@
 // 每日工作記錄表 - Service Worker
 // 更新程式後，請把版本號 +1，手機才會載入新版
-const CACHE = 'worklog-v2.11';
+const CACHE = 'worklog-v2.12';
 const CORE = [
   './',
   './index.html',
@@ -67,4 +67,18 @@ self.addEventListener('fetch', event => {
       }
     })());
   }
+});
+
+// v2.12：點通知 → 打開（或切回）App，並捲到那個任務
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const taskId = event.notification.data && event.notification.data.taskId;
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const scope = self.registration.scope;
+    let client = all.find(c => c.url.startsWith(scope));
+    if (client) { await client.focus(); }
+    else { client = await self.clients.openWindow(scope); }
+    if (client && taskId) setTimeout(() => client.postMessage({ type: 'open-task', taskId }), 600);
+  })());
 });
