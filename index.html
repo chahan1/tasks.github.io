@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.12</title>
+    <title>每日工作記錄表 v2.13</title>
     <script>try{var z=parseFloat(localStorage.getItem("wl_zoom"));if(z>=0.8&&z<=1.6)document.documentElement.style.setProperty("--z",z)}catch(e){}try{var t=localStorage.getItem("wl_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
     <script src="sortable.min.js"></script><!-- SortableJS 1.15.6（MIT），放在本機，離線也能拖曳 -->
     <style>
@@ -392,6 +392,16 @@
         .due-tag.soon { color: var(--c-7a5b00); background: var(--c-fff8e1); }
         .due-tag.overdue { color: var(--c-d93025); background: color-mix(in srgb, var(--c-d93025) 13%, transparent); }
         .due-tag.done { color: var(--muted); background: var(--c-f1f3f4); font-weight: 500; }
+        .btn-due-new.set { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+        .pending-due { display: none; align-items: center; gap: 6px; margin-top: calc(6px * var(--z)); }
+        .pending-due.show { display: flex; }
+        .pending-due .due-tag { margin-left: 0; font-size: calc(11.5px * var(--z)); padding: calc(3px * var(--z)) calc(8px * var(--z)) calc(3px * var(--z)) calc(7px * var(--z)); }
+        .pending-due small { font-size: calc(11.5px * var(--z)); color: var(--muted); }
+        .pending-due .pd-x { border: none; background: none; color: var(--muted); font-size: calc(17px * var(--z)); width: calc(26px * var(--z)); height: calc(26px * var(--z)); border-radius: 50%; cursor: pointer; line-height: 1; }
+        .undo-bar button.set-time { color: #8ab4f8; }
+        .dm-switch { display: flex; align-items: flex-start; gap: 8px; font-size: calc(13px * var(--z)); color: var(--text); margin-top: calc(12px * var(--z)); cursor: pointer; line-height: 1.5; }
+        .dm-switch input { width: calc(17px * var(--z)); height: calc(17px * var(--z)); margin-top: calc(2px * var(--z)); flex-shrink: 0; accent-color: var(--blue); }
+        .dm-switch small { display: block; color: var(--muted); font-size: calc(11.5px * var(--z)); }
         .btn-time { display: none !important; color: var(--c-9aa0a6); }
         body.edit-mode .btn-time { display: flex !important; }
         body.edit-mode .btn-time.has-due { color: var(--blue); }
@@ -460,7 +470,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> 每日工作記錄表<span class="today-stat" id="todayStat"></span></h2><span class="version-tag">v2.12</span>
+            <h2><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> 每日工作記錄表<span class="today-stat" id="todayStat"></span></h2><span class="version-tag">v2.13</span>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -498,9 +508,11 @@
         </div>
         <div class="input-group">
             <input type="text" id="mainTaskInput" placeholder="新增主要任務…" onkeydown="if(event.key==='Enter' && !event.isComposing) addMainTask()">
+            <button class="btn-voice btn-due-new" id="dueNewButton" title="先設定時間，再新增任務" onclick="openPendingDue()"><svg aria-hidden="true" class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
             <button class="btn-voice" id="micButton" title="語音新增任務"><svg aria-hidden="true" class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
             <button class="btn-primary btn-add-main" title="新增任務" onclick="addMainTask()"><svg aria-hidden="true" class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
         </div>
+        <div class="pending-due" id="pendingDue"></div>
         <div id="voiceStatus"></div>
         <div class="edit-bar"><span><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-pencil"/></svg> 修改模式：可編輯、刪除任務</span><button class="bb-btn primary" onclick="toggleEditMode()">完成</button></div>
         <div id="backupBanner" class="backup-banner">
@@ -594,6 +606,7 @@
                     <option value="1440">提前 1 天</option>
                 </select>
             </div>
+            <label class="dm-switch"><input type="checkbox" id="ntAuto" onchange="setAutoTime(this.checked)"><span>從任務文字自動辨識時間<small>例如說「明天下午三點開會」「週五 10:30 交報告」，新增時會自動設定時間</small></span></label>
             <div class="dm-field"><label>接下來的提醒</label><div class="upcoming" id="ntUpcoming"></div></div>
             <ul class="notif-list">
                 <li>App 開著（或剛切到背景）時才能準時通知。手機把 App 完全關閉後，網頁無法自己醒來發通知。</li>
@@ -1183,7 +1196,24 @@
             }
             setTimeout(saveData, 0);   // 等 Sortable 收尾後再重繪
         }
+        // v2.13：通用的底部提示列（文字＋一個按鈕），6 秒後消失
+        function showActionBar(msg, label, fn) {
+            let bar = document.getElementById('actionBar');
+            if (!bar) {
+                bar = document.createElement('div'); bar.id = 'actionBar'; bar.className = 'undo-bar';
+                bar.innerHTML = '<span></span><button class="set-time"></button>';
+                document.body.appendChild(bar);
+            }
+            const u = document.getElementById('undoBar'); if (u) u.classList.remove('show');
+            const tt = document.getElementById('toast'); if (tt) tt.classList.remove('show');
+            bar.querySelector('span').textContent = msg;
+            const btn = bar.querySelector('button'); btn.textContent = label;
+            btn.onclick = () => { bar.classList.remove('show'); fn(); };
+            bar.classList.add('show');
+            clearTimeout(bar._t); bar._t = setTimeout(() => bar.classList.remove('show'), 6000);
+        }
         function showUndo(msg) {
+            const ab = document.getElementById('actionBar'); if (ab) ab.classList.remove('show');
             let bar = document.getElementById('undoBar');
             if (!bar) {
                 bar = document.createElement('div'); bar.id = 'undoBar'; bar.className = 'undo-bar';
@@ -1244,7 +1274,128 @@
 
         // 設定時間的小視窗
         let dueTarget = null;
-        function dueObj() { return dueTarget ? getTarget(dueTarget.id, dueTarget.level, dueTarget.parentId, dueTarget.grandParentId) : null; }
+        function dueObj() {
+            if (!dueTarget) return null;
+            if (dueTarget.pending) return pendingDue;
+            return getTarget(dueTarget.id, dueTarget.level, dueTarget.parentId, dueTarget.grandParentId);
+        }
+        // ---- v2.13：建立任務時就設定時間 ----
+        // pendingDue：主任務輸入框旁的時鐘按鈕先選好的時間，按「新增」時一起存進新任務
+        let pendingDue = { text: '', id: -1 };
+        function openPendingDue() {
+            pendingDue.text = document.getElementById('mainTaskInput').value.trim() || '新的主任務';
+            dueTarget = { pending: true };
+            document.getElementById('dmTask').textContent = pendingDue.text;
+            document.getElementById('dmPath').textContent = '先設定好時間，按「新增」時一起存入';
+            let d;
+            if (pendingDue.dueAt) d = new Date(pendingDue.dueAt);
+            else { d = new Date(Date.now() + 60 * 60000); d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0); }
+            setDueInputs(d);
+            document.getElementById('dmLead').value = String(pendingDue.dueAt ? (pendingDue.remindLead || 0) : defaultLead());
+            document.getElementById('dmClear').style.visibility = pendingDue.dueAt ? 'visible' : 'hidden';
+            document.querySelector('#dueModal .dm-gcal').style.display = 'none';
+            updateDueHint();
+            document.getElementById('dueModal').style.display = 'flex';
+        }
+        function renderPendingDue() {
+            const el = document.getElementById('pendingDue'), btn = document.getElementById('dueNewButton');
+            if (pendingDue.dueAt) {
+                el.innerHTML = `<span class="due-tag ${dueState(pendingDue)}" onclick="openPendingDue()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>${fmtDue(pendingDue.dueAt)}</span><small>${LEAD_TEXT[pendingDue.remindLead || 0]}，新增時一起存入</small><button class="pd-x" onclick="clearPendingDue()" title="取消時間">×</button>`;
+                el.classList.add('show'); btn.classList.add('set');
+            } else { el.classList.remove('show'); el.innerHTML = ''; btn.classList.remove('set'); }
+        }
+        function clearPendingDue() { pendingDue = { text: '', id: -1 }; renderPendingDue(); }
+        function applyDue(task, ts, lead) {
+            task.dueAt = ts; task.remindLead = lead;
+            if (ts <= Date.now()) { task.notifiedPre = ts; task.notifiedDue = ts; }
+        }
+
+        // ---- 從文字自動辨識時間（例如「明天下午三點開會」「週五 10:30 交報告」）----
+        // 一定要有「幾點」或「HH:MM」才會設定；只有日期（例如「11月2號前完成」）不會自動設定。
+        function autoTimeOn() { return localStorage.getItem('wl_autoTime') !== 'off'; }
+        function setAutoTime(on) { on ? localStorage.removeItem('wl_autoTime') : localStorage.setItem('wl_autoTime', 'off'); }
+        function cnNum(str) {
+            if (/^\d+$/.test(str)) return parseInt(str, 10);
+            const d = { 零: 0, 〇: 0, 一: 1, 二: 2, 兩: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+            if (str === '十') return 10;
+            const m = str.match(/^([一二兩两三四五六七八九])?十([一二三四五六七八九])?$/);
+            if (m) return (m[1] ? d[m[1]] : 1) * 10 + (m[2] ? d[m[2]] : 0);
+            if (str.length === 1 && str in d) return d[str];
+            return NaN;
+        }
+        function parseDueFromText(text, now = new Date()) {
+            const N = '(\\d{1,2}|[零〇一二兩两三四五六七八九十]{1,3})';
+            const reTime = new RegExp('(凌晨|清晨|早上|上午|中午|午後|下午|傍晚|晚上|今晚)?\\s*' + N + '\\s*[點点時时](?:\\s*(半|' + N + '\\s*分?))?');
+            const reClock = /(凌晨|清晨|早上|上午|中午|午後|下午|傍晚|晚上|今晚)?\s*(\d{1,2})[:：](\d{2})/;
+            let h, mi = 0, period = '';
+            let m = text.match(reClock);
+            if (m) { period = m[1] || ''; h = parseInt(m[2], 10); mi = parseInt(m[3], 10); }
+            else {
+                m = text.match(reTime);
+                if (!m) return null;
+                period = m[1] || ''; h = cnNum(m[2]);
+                if (m[3] === '半') mi = 30; else if (m[4]) mi = cnNum(m[4]);
+            }
+            if (isNaN(h) || isNaN(mi) || h > 24 || mi > 59) return null;
+            if (/下午|午後|傍晚|晚上|今晚/.test(period) && h < 12) h += 12;
+            if (period === '中午' && h < 5) h += 12;
+            if (h === 24) h = 0;
+
+            // 日期
+            let date = null, explicitDate = false;
+            const base = new Date(now); base.setHours(0, 0, 0, 0);
+            const addDays = n => { const d = new Date(base); d.setDate(d.getDate() + n); return d; };
+            let dm;
+            if (/大後天/.test(text)) { date = addDays(3); explicitDate = true; }
+            else if (/後天/.test(text)) { date = addDays(2); explicitDate = true; }
+            else if (/明天|明日|明早|明晚/.test(text)) { date = addDays(1); explicitDate = true; }
+            else if (/今天|今日|今晚|今早/.test(text)) { date = addDays(0); explicitDate = true; }
+            else if ((dm = text.match(/(下下|下)?(?:個)?(?:週|周|星期|禮拜)([一二三四五六日天])/))) {
+                const wd = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 日: 0, 天: 0 }[dm[2]];
+                const today = base.getDay();
+                let diff;
+                if (dm[1]) {   // 下週X：下一週（週一開始）的星期X
+                    const toNextMon = ((8 - today) % 7) || 7;
+                    diff = toNextMon + ((wd + 6) % 7) + (dm[1] === '下下' ? 7 : 0);
+                } else diff = (wd - today + 7) % 7;
+                date = addDays(diff); explicitDate = true;
+                if (!dm[1] && diff === 0) explicitDate = 'weekday-today';
+            }
+            else if ((dm = text.match(new RegExp(N + '\\s*月\\s*' + N + '\\s*[日號号]')) || text.match(/(\d{1,2})\/(\d{1,2})(?!\d)/))) {
+                const mo = cnNum(dm[1]), da = cnNum(dm[2]);
+                if (mo >= 1 && mo <= 12 && da >= 1 && da <= 31) {
+                    date = new Date(base.getFullYear(), mo - 1, da);
+                    if (date < addDays(-30)) date.setFullYear(date.getFullYear() + 1);   // 已經過很久 → 明年
+                    explicitDate = true;
+                }
+            }
+            else if ((dm = text.match(new RegExp('(?<![月\\d/])' + N + '\\s*[號号](?![碼码])')))) {
+                const da = cnNum(dm[1]);
+                if (da >= 1 && da <= 31) { date = new Date(base.getFullYear(), base.getMonth(), da); if (date < base) date.setMonth(date.getMonth() + 1); explicitDate = true; }
+            }
+
+            // 沒說上午下午、又是 1～6 點 → 當成下午（工作時間）
+            const noPeriod = !period && !m[0].includes(':') && !m[0].includes('：') && h >= 1 && h <= 6;
+            const at = d => { const x = new Date(d); x.setHours(h, mi, 0, 0); return x; };
+            let result;
+            if (date) {
+                result = at(date);
+                if (noPeriod) result.setHours(h + 12);
+                if (explicitDate === 'weekday-today' && result <= now) result.setDate(result.getDate() + 7);
+            } else {
+                // 沒有日期：今天這個時間還沒到就用今天；沒說上午下午時先試下午；都過了就明天
+                result = at(base);
+                if (result <= now && !period && h < 12) { const pm = new Date(result); pm.setHours(h + 12); if (pm > now) result = pm; }
+                if (result <= now) result.setDate(result.getDate() + 1);
+            }
+            return result.getTime();
+        }
+        // 新增後的提示列：顯示時間，並提供「設定時間／修改時間」按鈕
+        function afterAddBar(task, level, a = null, b = null, how = '') {
+            const label = task.dueAt ? '修改時間' : '設定時間';
+            const msg = task.dueAt ? `⏰ ${fmtDue(task.dueAt)}${how ? '（自動辨識）' : ''}・已新增「${task.text}」` : `已新增「${task.text}」`;
+            showActionBar(msg, label, () => openDue(task.id, level, a, b));
+        }
         function openDue(id, level, parentId = null, grandParentId = null) {
             dueTarget = { id, level, parentId, grandParentId };
             const t = dueObj(); if (!t) return;
@@ -1303,18 +1454,27 @@
             if (t.dueAt !== ts || (t.remindLead || 0) !== lead) { delete t.notifiedPre; delete t.notifiedDue; }
             t.dueAt = ts; t.remindLead = lead;
             if (ts <= Date.now()) { t.notifiedPre = ts; t.notifiedDue = ts; }   // 已過的時間不再通知
+            const wasPending = dueTarget && dueTarget.pending;
             closeDue();
+            if (wasPending) {   // v2.13：還沒建立的任務，先記著時間
+                renderPendingDue();
+                showToast(`已選好時間 ${fmtDue(ts)}，輸入任務後按「新增」`, 2200);
+                document.getElementById('mainTaskInput').focus();
+                if (ts > Date.now()) await requestNotifPermission(false);
+                return;
+            }
             saveData();
             showToast(`已設定 ${fmtDue(ts)}${lead ? `，${LEAD_TEXT[lead]}提醒` : ''}`, 2200);
             if (ts > Date.now()) await requestNotifPermission(false);
             scheduleCheck();
         }
         function clearDue() {
+            if (dueTarget && dueTarget.pending) { closeDue(); clearPendingDue(); return; }
             const t = dueObj(); if (!t) return closeDue();
             ['dueAt', 'remindLead', 'notifiedPre', 'notifiedDue'].forEach(k => delete t[k]);
             closeDue(); saveData(); showToast('已清除時間', 1500);
         }
-        function closeDue() { document.getElementById('dueModal').style.display = 'none'; dueTarget = null; }
+        function closeDue() { document.getElementById('dueModal').style.display = 'none'; dueTarget = null; document.querySelector('#dueModal .dm-gcal').style.display = ''; }
 
         // 加到 Google 日曆：開啟 Google 日曆的新增活動畫面（App 關閉時，由日曆負責提醒）
         function addToGoogleCalendar() {
@@ -1339,6 +1499,8 @@
             if (p === 'unsupported') { if (fromSettings) showToast('這個瀏覽器不支援通知', 2500); return false; }
             if (p === 'granted') { if (fromSettings) showToast('已經允許通知了', 1500); renderNotifSettings(); return true; }
             if (p === 'denied') {
+                if (!fromSettings && requestNotifPermission._deniedShown) return false;   // 每次開啟 App 只提醒一次
+                requestNotifPermission._deniedShown = true;
                 showToast('通知被封鎖了\n請到手機設定 → 應用程式 → Chrome（或本 App）→ 通知，改為允許', 4500);
                 renderNotifSettings(); return false;
             }
@@ -1451,6 +1613,7 @@
                 : '<b>尚未允許通知</b>，按右下「允許通知」';
             btn.style.display = p === 'granted' || p === 'unsupported' ? 'none' : '';
             document.getElementById('ntLead').value = String(defaultLead());
+            document.getElementById('ntAuto').checked = autoTimeOn();
             const up = allTasksFlat().filter(x => x.t.dueAt && !x.t.checked).sort((a, b) => a.t.dueAt - b.t.dueAt).slice(0, 6);
             document.getElementById('ntUpcoming').innerHTML = up.length
                 ? up.map(x => `<div><b style="font-weight:500">${escapeHtml(x.t.text)}</b><span>${x.t.dueAt < Date.now() ? '已過 ' : ''}${fmtDue(x.t.dueAt)}</span></div>`).join('')
@@ -1528,8 +1691,14 @@
         function addMainTask() {
             const input = document.getElementById('mainTaskInput');
             const text = input.value.trim(); if (!text) return;
-            tasks.unshift({ id: newId(), text, checked: false, collapsed: false, createdAt: Date.now(), completedAt: null, subtasks: [] });
+            const task = { id: newId(), text, checked: false, collapsed: false, createdAt: Date.now(), completedAt: null, subtasks: [] };
+            let how = '';
+            if (pendingDue.dueAt) { applyDue(task, pendingDue.dueAt, pendingDue.remindLead || 0); clearPendingDue(); }
+            else if (autoTimeOn()) { const ts = parseDueFromText(text); if (ts) { applyDue(task, ts, defaultLead()); how = '（自動辨識時間）'; } }
+            tasks.unshift(task);
             input.value = ''; saveData();
+            afterAddBar(task, 'main', null, null, how);
+            if (task.dueAt && task.dueAt > Date.now()) { requestNotifPermission(false); scheduleCheck(); }
         }
         // ---- 新增次任務 / 孫任務：預設語音，語音失敗才改用鍵盤 ----
         let listenTarget = null;   // { level: 'sub' | 'grand', mainTaskId, subTaskId }
@@ -1584,18 +1753,27 @@
             // 聆聽期間可能拖曳或刪除，重新用 ID 找一次
             const parent = getParent(target);
             if (!parent) return showToast(`找不到原本的${target.level === 'sub' ? '主任務' : '次任務'}，可能已被刪除`);
+            let task, how = '';
+            const ts = autoTimeOn() ? parseDueFromText(text) : null;
             if (target.level === 'sub') {
-                parent.subtasks.unshift({ id: newId(), text, checked: false, collapsed: false, createdAt: Date.now(), completedAt: null, grandtasks: [] });
+                task = { id: newId(), text, checked: false, collapsed: false, createdAt: Date.now(), completedAt: null, grandtasks: [] };
+                if (ts) { applyDue(task, ts, defaultLead()); how = '（自動辨識時間）'; }
+                parent.subtasks.unshift(task);
                 clearReopened(parent);
                 parent.collapsed = false;
+                saveData();
+                afterAddBar(task, 'sub', parent.id, null, how);
             } else {
-                parent.grandtasks.unshift({ id: newId(), text, checked: false, createdAt: Date.now(), completedAt: null });
+                task = { id: newId(), text, checked: false, createdAt: Date.now(), completedAt: null };
+                if (ts) { applyDue(task, ts, defaultLead()); how = '（自動辨識時間）'; }
+                parent.grandtasks.unshift(task);
                 clearReopened(parent);
                 parent.collapsed = false;
                 const main = tasks.find(t => t.subtasks.includes(parent)); if (main) main.collapsed = false;
+                saveData();
+                afterAddBar(task, 'grand', parent.id, main ? main.id : null, how);
             }
-            saveData();
-            showToast(`✅ 已新增${levelName(target.level)}：${text}\n（點文字可修改）`, 2200);
+            if (task.dueAt && task.dueAt > Date.now()) { requestNotifPermission(false); scheduleCheck(); }
         }
 
         function editTask(id, level, parentId = null, grandParentId = null) {
