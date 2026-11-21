@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.15</title>
+    <title>每日工作記錄表 v2.15.1</title>
     <script>try{var z=parseFloat(localStorage.getItem("wl_zoom"));if(z>=0.8&&z<=1.6)document.documentElement.style.setProperty("--z",z)}catch(e){}try{var t=localStorage.getItem("wl_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
     <script src="sortable.min.js"></script><!-- SortableJS 1.15.6（MIT），放在本機，離線也能拖曳 -->
     <style>
@@ -515,7 +515,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> 每日工作記錄表<span class="today-stat" id="todayStat"></span></h2><span class="version-tag">v2.15</span>
+            <h2><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> 每日工作記錄表<span class="today-stat" id="todayStat"></span></h2><span class="version-tag">v2.15.1</span>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -628,6 +628,7 @@
             <div id="stBody" style="margin-top:calc(10px * var(--z))"></div>
             <div class="st-actions">
                 <button class="btn-primary" onclick="fullBackup()">完整備份（含照片）到 Google Drive／手機</button>
+                <button class="btn-outline" onclick="recompressAll()">把現有照片重新壓縮（省空間）</button>
                 <button class="btn-outline" onclick="cleanupDoneAttachments()">刪除「已完成任務」的照片</button>
                 <button class="btn-outline" onclick="cleanupOrphans(true)">清除沒有任務在用的照片</button>
             </div>
@@ -1945,6 +1946,44 @@
             return `<span class="att-tag" title="附件" onclick="event.stopPropagation(); openAtt(${t.id}, '${level}'${a !== null ? ', ' + a : ''}${b !== null ? ', ' + b : ''})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l9.2-9.2a3.4 3.4 0 0 1 4.8 4.8l-9.2 9.2a1.7 1.7 0 0 1-2.4-2.4l8.5-8.5"/></svg>${n}</span>`;
         }
 
+        // v2.15.1：畫質設定。預設「省空間」——只是記錄用，照片和截圖都壓得更小
+        const ATT_QUALITY = {
+            small:    { label: '省空間（建議）', photo: 1024, photoQ: 0.6, shotW: 900,  shotH: 5000, shotQ: 0.7 },
+            standard: { label: '標準（較清楚）', photo: 1600, photoQ: 0.8, shotW: 1440, shotH: 8000, shotQ: 0.92 }
+        };
+        function attQualityKey() { return localStorage.getItem('wl_attQuality') === 'standard' ? 'standard' : 'small'; }
+        function attQuality() { return ATT_QUALITY[attQualityKey()]; }
+        function setAttQuality(k) { k === 'standard' ? localStorage.setItem('wl_attQuality', 'standard') : localStorage.removeItem('wl_attQuality'); renderStorage(); }
+        // 把已經存的照片用「省空間」重新壓縮（只在變小時才換掉）
+        async function recompressAll() {
+            const all = await mediaAll().catch(() => []);
+            if (!all.length) return showToast('目前沒有照片', 1500);
+            if (!confirm(`要把 ${all.length} 張照片用「省空間」畫質重新壓縮嗎？\n壓縮後無法恢復原本的畫質。`)) return;
+            const Q = ATT_QUALITY.small;
+            let before = 0, after = 0, done = 0;
+            for (const r of all) {
+                before += r.size || 0;
+                try {
+                    const bmp = await loadBitmap(new File([r.blob], 'x', { type: r.mime }));
+                    const shot = r.kind === 'screenshot';
+                    const fc = shot ? drawScaled(bmp, bmp.width, bmp.height, Q.shotW, Q.shotH) : drawScaled(bmp, bmp.width, bmp.height, Q.photo, Q.photo);
+                    const blob = await canvasBlob(fc, shot ? Q.shotQ : Q.photoQ);
+                    const thumb = await canvasBlob(drawScaled(bmp, bmp.width, bmp.height, 240, 240), 0.6);
+                    if (bmp.close) bmp.close();
+                    const size = blob.size + thumb.size;
+                    if (size < (r.size || Infinity)) {
+                        await mediaPut({ ...r, blob, thumb, mime: blob.type, w: fc.width, h: fc.height, size });
+                        if (thumbUrls.has(r.id)) { URL.revokeObjectURL(thumbUrls.get(r.id)); thumbUrls.delete(r.id); }
+                        after += size;
+                    } else after += r.size || 0;
+                } catch (e) { after += r.size || 0; }
+                done++;
+                if (done % 3 === 0) showToast(`重新壓縮中…（${done}／${all.length}）`, 1200);
+            }
+            renderStorage();
+            showToast(`✅ 已重新壓縮：${fmtBytes(before)} → ${fmtBytes(after)}`, 3500);
+        }
+
         // 判斷是不是截圖：PNG 檔、檔名有 screenshot／截圖，或是手機螢幕比例且寬度像螢幕
         function looksLikeScreenshot(file, w, h) {
             if (/screenshot|screen_?shot|螢幕|截圖|擷取|capture/i.test(file.name || '')) return true;
@@ -1977,10 +2016,11 @@
             const w = bmp.width, h = bmp.height;
             const shot = looksLikeScreenshot(file, w, h);
             // 截圖：不縮小（寬最多 1440，太長的截圖高度最多 8000），高畫質保留文字；照片：長邊 1600
-            const fc = shot ? drawScaled(bmp, w, h, 1440, 8000) : drawScaled(bmp, w, h, 1600, 1600);
-            const full = await canvasBlob(fc, shot ? 0.92 : 0.8);
-            const thumbC = drawScaled(bmp, w, h, 320, 320);
-            const thumb = await canvasBlob(thumbC, 0.75);
+            const Q = attQuality();
+            const fc = shot ? drawScaled(bmp, w, h, Q.shotW, Q.shotH) : drawScaled(bmp, w, h, Q.photo, Q.photo);
+            const full = await canvasBlob(fc, shot ? Q.shotQ : Q.photoQ);
+            const thumbC = drawScaled(bmp, w, h, 240, 240);
+            const thumb = await canvasBlob(thumbC, 0.6);
             if (bmp.close) bmp.close();
             return { id: newMediaId(), kind: shot ? 'screenshot' : 'photo', mime: full.type, blob: full, thumb, w: fc.width, h: fc.height, size: full.size + thumb.size, createdAt: Date.now(), name: file.name || '' };
         }
@@ -2129,7 +2169,13 @@
                 <div class="att-info" style="margin-top:4px">建議在 ${fmtBytes(ATT_WARN_BYTES)} 以內${est && est.quota ? `；這支手機給本 App 的空間上限約 ${fmtBytes(est.quota)}` : ''}${persisted ? '；已設為「盡量保留」' : ''}</div>
                 <div class="st-row"><b style="font-weight:600">已完成任務的照片</b><span>${doneIds.length} 張</span></div>
                 <div class="st-row"><b style="font-weight:600">沒有任務在用的照片</b><span>${orphans.length} 張</span></div>
-                <div class="st-row"><b style="font-weight:600">完整備份預估大小</b><span>約 ${fmtBytes(Math.round(bytes * 1.37) + JSON.stringify(tasks).length)}</span></div>`;
+                <div class="st-row"><b style="font-weight:600">完整備份預估大小</b><span>約 ${fmtBytes(Math.round(bytes * 1.37) + JSON.stringify(tasks).length)}</span></div>
+                <div class="dm-field"><label for="stQuality">新加入照片的畫質</label>
+                    <select id="stQuality" onchange="setAttQuality(this.value)">
+                        ${Object.entries(ATT_QUALITY).map(([k, v]) => `<option value="${k}" ${k === attQualityKey() ? 'selected' : ''}>${v.label}</option>`).join('')}
+                    </select>
+                    <div class="att-info" style="margin-top:4px">${attQualityKey() === 'small' ? '照片約 50～120 KB、截圖約 60～150 KB，看得出內容，適合當紀錄。' : '照片約 100～300 KB、截圖約 150～400 KB，小字比較清楚。'}</div>
+                </div>`;
         }
         async function cleanupDoneAttachments() {
             const ids = []; const owners = [];
