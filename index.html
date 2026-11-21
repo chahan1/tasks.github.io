@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <title>每日工作記錄表 v2.14.1</title>
+    <title>每日工作記錄表 v2.15</title>
     <script>try{var z=parseFloat(localStorage.getItem("wl_zoom"));if(z>=0.8&&z<=1.6)document.documentElement.style.setProperty("--z",z)}catch(e){}try{var t=localStorage.getItem("wl_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
     <script src="sortable.min.js"></script><!-- SortableJS 1.15.6（MIT），放在本機，離線也能拖曳 -->
     <style>
@@ -402,6 +402,40 @@
         .dm-switch { display: flex; align-items: flex-start; gap: 8px; font-size: calc(13px * var(--z)); color: var(--text); margin-top: calc(12px * var(--z)); cursor: pointer; line-height: 1.5; }
         .dm-switch input { width: calc(17px * var(--z)); height: calc(17px * var(--z)); margin-top: calc(2px * var(--z)); flex-shrink: 0; accent-color: var(--blue); }
         .dm-switch small { display: block; color: var(--muted); font-size: calc(11.5px * var(--z)); }
+        /* ---- 附件：照片／截圖（v2.15） ---- */
+        .att-tag { display: inline-flex; align-items: center; gap: calc(2px * var(--z)); font-size: calc(10.5px * var(--z)); font-weight: 600; color: var(--sub); background: var(--c-f1f3f4); padding: calc(1px * var(--z)) calc(7px * var(--z)) calc(1px * var(--z)) calc(5px * var(--z)); border-radius: calc(9px * var(--z)); margin-left: calc(4px * var(--z)); vertical-align: 1px; cursor: pointer; white-space: nowrap; text-decoration: none; font-variant-numeric: tabular-nums; }
+        .att-tag svg { width: calc(11px * var(--z)); height: calc(11px * var(--z)); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .att-modal { max-width: 460px; }
+        .att-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(8px * var(--z)); margin-top: calc(12px * var(--z)); }
+        .att-cell { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--c-f1f3f4); cursor: pointer; border: 1px solid var(--line); }
+        .att-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .att-cell .kind { position: absolute; left: 4px; bottom: 4px; font-size: calc(10px * var(--z)); background: rgba(0,0,0,0.55); color: white; padding: 1px 6px; border-radius: 8px; }
+        .att-cell.missing { display: flex; align-items: center; justify-content: center; text-align: center; font-size: calc(11px * var(--z)); color: var(--muted); padding: 6px; line-height: 1.4; cursor: default; }
+        .att-add { aspect-ratio: 1; border-radius: 10px; border: 1.5px dashed var(--blue-line); background: transparent; color: var(--blue); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; font-size: calc(12px * var(--z)); }
+        .att-add svg { width: calc(24px * var(--z)); height: calc(24px * var(--z)); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .att-add:disabled { opacity: 0.4; cursor: default; }
+        .att-info { font-size: calc(11.5px * var(--z)); color: var(--muted); margin-top: calc(10px * var(--z)); line-height: 1.55; min-height: calc(16px * var(--z)); }
+        .viewer { display: none; position: fixed; inset: 0; z-index: 1500; background: rgba(0,0,0,0.92); flex-direction: column; }
+        .viewer.show { display: flex; }
+        .vw-top, .vw-bottom { display: flex; align-items: center; gap: 8px; padding: calc(10px * var(--z)) calc(12px * var(--z)); color: white; font-size: calc(13px * var(--z)); }
+        .vw-top span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; font-variant-numeric: tabular-nums; }
+        .vw-btn { background: rgba(255,255,255,0.12); border: none; color: white; font-size: calc(13px * var(--z)); padding: calc(8px * var(--z)) calc(14px * var(--z)); border-radius: calc(18px * var(--z)); cursor: pointer; }
+        .vw-btn.danger { color: #ff8a80; }
+        .vw-btn:disabled { opacity: 0.3; }
+        .vw-stage { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: center; justify-content: center; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+        .vw-stage img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; user-select: none; }
+        .vw-stage.zoom { align-items: flex-start; justify-content: flex-start; }
+        .vw-stage.zoom img { max-width: none; max-height: none; width: 250%; }
+        .vw-bottom { justify-content: center; flex-wrap: wrap; }
+        .vw-hint { width: 100%; text-align: center; font-size: calc(11px * var(--z)); opacity: 0.6; }
+        .storage-bar { height: calc(8px * var(--z)); background: var(--c-e8eaed); border-radius: 4px; overflow: hidden; margin-top: calc(6px * var(--z)); }
+        .storage-bar i { display: block; height: 100%; background: var(--blue); border-radius: 4px; }
+        .storage-bar i.warn { background: var(--c-b06000); }
+        .st-row { display: flex; justify-content: space-between; gap: 8px; font-size: calc(13px * var(--z)); padding: calc(6px * var(--z)) 0; border-top: 1px solid var(--line); }
+        .st-row:first-child { border-top: none; }
+        .st-row span { color: var(--muted); font-variant-numeric: tabular-nums; }
+        .st-actions { display: flex; flex-direction: column; gap: 8px; margin-top: calc(12px * var(--z)); }
+        .st-actions button { text-align: left; }
         /* ---- 修改任務視窗（v2.14） ---- */
         #editModal textarea.em-input { font-family: var(--font); font-size: calc(16px * var(--z)); height: auto; margin-bottom: 0; }
         #editModal textarea.em-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px var(--c-1a73e8-12); outline: none; }
@@ -481,7 +515,7 @@
 
     <div class="sticky-top-bar">
         <div class="header-container">
-            <h2><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> 每日工作記錄表<span class="today-stat" id="todayStat"></span></h2><span class="version-tag">v2.14.1</span>
+            <h2><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> 每日工作記錄表<span class="today-stat" id="todayStat"></span></h2><span class="version-tag">v2.15</span>
             <div class="menu-wrapper">
                 <button class="three-dots-btn" onclick="toggleDropdown(event)" title="更多">⋮</button>
                 <div class="dropdown-menu" id="dropdownMenu">
@@ -508,8 +542,9 @@
                     </div>
                     <div class="dropdown-divider"></div>
                     <div class="dropdown-label">備份</div>
-                    <div class="dropdown-item" onclick="shareBackupToDrive()"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-cloud"/></svg> <span>備份到 Google Drive</span></div>
+                    <div class="dropdown-item" onclick="shareBackupToDrive()"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-cloud"/></svg> <span>備份到 Google Drive（文字）</span></div>
                     <div class="dropdown-item" onclick="downloadBackup()"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-download"/></svg> <span>下載備份檔到手機</span></div>
+                    <div class="dropdown-item" onclick="openStorage()"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l9.2-9.2a3.4 3.4 0 0 1 4.8 4.8l-9.2 9.2a1.7 1.7 0 0 1-2.4-2.4l8.5-8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> <span>附件與完整備份</span></div>
                     <div class="dropdown-item" onclick="openRestore()"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-folder-open"/></svg> <span>從備份檔還原（可選 Drive）</span></div>
                     <div class="dropdown-item" onclick="openTextModal('export')"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-clipboard"/></svg> <span>複製備份文字</span></div>
                     <div class="dropdown-item" onclick="openTextModal('import')"><svg class="hi " viewBox="0 0 24 24" aria-hidden="true"><use href="#hi-note"/></svg> <span>貼上文字還原</span></div>
@@ -554,6 +589,56 @@
         <div class="report-sheet" id="reportSheet"></div>
     </div>
 
+    <!-- 附件（v2.15） -->
+    <div id="attModal" class="modal-overlay" onclick="if(event.target===this) closeAtt()">
+        <div class="modal-content att-modal" role="dialog" aria-modal="true" aria-labelledby="atTask">
+            <div class="nm-head">
+                <span class="nm-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l9.2-9.2a3.4 3.4 0 0 1 4.8 4.8l-9.2 9.2a1.7 1.7 0 0 1-2.4-2.4l8.5-8.5"/></svg></span>
+                <div class="nm-title"><b id="atTask"></b><small id="atPath"></small></div>
+                <button class="nm-close" onclick="closeAtt()" title="關閉">×</button>
+            </div>
+            <div class="att-grid" id="atGrid"></div>
+            <div class="att-info" id="atInfo"></div>
+            <div class="nm-actions"><span class="spacer"></span><button class="btn-primary" onclick="closeAtt()">完成</button></div>
+        </div>
+    </div>
+    <input type="file" id="attFile" accept="image/*" multiple style="display:none" onchange="onAttFiles(event)">
+
+    <!-- 看大圖 -->
+    <div id="viewer" class="viewer" role="dialog" aria-modal="true">
+        <div class="vw-top"><span id="vwTitle"></span><button class="vw-btn" onclick="closeViewer()">關閉</button></div>
+        <div class="vw-stage" id="vwStage" ondblclick="toggleZoom()"><img id="vwImg" alt=""></div>
+        <div class="vw-bottom">
+            <button class="vw-btn" id="vwPrev" onclick="stepViewer(-1)">‹ 上一張</button>
+            <button class="vw-btn" onclick="shareCurrent()">分享／存到手機</button>
+            <button class="vw-btn danger" onclick="deleteCurrent()">刪除</button>
+            <button class="vw-btn" id="vwNext" onclick="stepViewer(1)">下一張 ›</button>
+            <div class="vw-hint">點兩下放大，放大後可拖曳查看</div>
+        </div>
+    </div>
+
+    <!-- 附件與完整備份 -->
+    <div id="storageModal" class="modal-overlay" onclick="if(event.target===this) closeStorage()">
+        <div class="modal-content due-modal" role="dialog" aria-modal="true" aria-labelledby="stTitle">
+            <div class="nm-head">
+                <span class="nm-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l9.2-9.2a3.4 3.4 0 0 1 4.8 4.8l-9.2 9.2a1.7 1.7 0 0 1-2.4-2.4l8.5-8.5"/></svg></span>
+                <div class="nm-title"><b id="stTitle">附件與完整備份</b><small>照片存在這支手機裡，一般備份只有文字</small></div>
+                <button class="nm-close" onclick="closeStorage()" title="關閉">×</button>
+            </div>
+            <div id="stBody" style="margin-top:calc(10px * var(--z))"></div>
+            <div class="st-actions">
+                <button class="btn-primary" onclick="fullBackup()">完整備份（含照片）到 Google Drive／手機</button>
+                <button class="btn-outline" onclick="cleanupDoneAttachments()">刪除「已完成任務」的照片</button>
+                <button class="btn-outline" onclick="cleanupOrphans(true)">清除沒有任務在用的照片</button>
+            </div>
+            <ul class="notif-list">
+                <li>「備份到 Google Drive（文字）」和「下載備份檔」只備份文字，檔案很小；照片要用上面的「完整備份」。</li>
+                <li>清除 App 資料、解除安裝或換手機時，照片會不見，請定期做完整備份。</li>
+                <li>完整備份可以用「從備份檔還原」還原，照片會一起回來。</li>
+            </ul>
+        </div>
+    </div>
+
     <!-- 修改任務（v2.14）：取代瀏覽器內建輸入框，可以直接改時間和註記 -->
     <div id="editModal" class="modal-overlay" onclick="if(event.target===this) closeEdit()">
         <div class="modal-content due-modal" role="dialog" aria-modal="true" aria-labelledby="emTitle">
@@ -565,6 +650,7 @@
             <textarea class="em-input" id="emText" rows="2" enterkeyhint="done" oninput="fitEditBox()" onkeydown="if(event.key==='Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); saveEdit(); }"></textarea>
             <div class="em-tools">
                 <button class="em-tool" id="emDue" onclick="editOpenDue()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span></span></button>
+                <button class="em-tool" id="emAtt" onclick="editOpenAtt()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l9.2-9.2a3.4 3.4 0 0 1 4.8 4.8l-9.2 9.2a1.7 1.7 0 0 1-2.4-2.4l8.5-8.5"/></svg><span></span></button>
                 <button class="em-tool" id="emNote" onclick="editOpenNote()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg><span></span></button>
             </div>
             <div class="nm-actions">
@@ -1124,6 +1210,10 @@
         function restoreFromText(text) {
             let imported;
             try { imported = JSON.parse(text); } catch (e) { alert('讀取失敗！請確認是本程式匯出的備份。'); return false; }
+            // v2.15：完整備份（含照片）
+            if (imported && !Array.isArray(imported) && imported.format === 'worklog-full' && Array.isArray(imported.tasks)) {
+                restoreFullBackup(imported); return true;
+            }
             if (!Array.isArray(imported)) { alert('資料格式不正確！'); return false; }
             // 匯入時重新編號，避免和現有任務 ID 重複
             const fresh = normalizeTasks(imported).map(t => ({
@@ -1158,7 +1248,7 @@
             const base = { id: obj.id, text: obj.text, checked: !!obj.checked, createdAt: obj.createdAt, completedAt: obj.completedAt ?? null };
             const keepNote = (from, to) => {
                 if (from.note) { to.note = from.note; if (from.noteAt) to.noteAt = from.noteAt; }
-                ['dueAt', 'remindLead', 'notifiedPre', 'notifiedDue'].forEach(k => { if (from[k] !== undefined) to[k] = from[k]; });   // v2.12：時間提醒也跟著走
+                ['dueAt', 'remindLead', 'notifiedPre', 'notifiedDue', 'attachments'].forEach(k => { if (from[k] !== undefined) to[k] = from[k]; });   // v2.12 時間、v2.15 附件也跟著走
                 return to;
             };
             keepNote(obj, base);
@@ -1808,6 +1898,305 @@
             if (task.dueAt && task.dueAt > Date.now()) { requestNotifPermission(false); scheduleCheck(); }
         }
 
+        // ---- 附件：照片／截圖（v2.15） ----
+        // 照片存在 IndexedDB（空間大、不影響打勾拖曳的速度），任務只記 attachments: [照片編號]。
+        // 加入時自動壓縮：照片長邊 1600、截圖保留解析度（寬最多 1440，字才清楚），並產生縮圖。
+        // 重新繪製時會去掉照片裡的拍攝地點等 EXIF 資料。
+        const ATT_MAX_PER_TASK = 5;
+        const ATT_WARN_BYTES = 50 * 1024 * 1024;
+        const MEDIA_DB = 'worklog-media', MEDIA_STORE = 'files';
+        let mediaDbP = null;
+        function mediaDb() {
+            if (!mediaDbP) mediaDbP = new Promise((res, rej) => {
+                const r = indexedDB.open(MEDIA_DB, 1);
+                r.onupgradeneeded = () => r.result.createObjectStore(MEDIA_STORE, { keyPath: 'id' });
+                r.onsuccess = () => res(r.result);
+                r.onerror = () => { mediaDbP = null; rej(r.error); };
+            });
+            return mediaDbP;
+        }
+        async function mediaTx(mode, fn) {
+            const db = await mediaDb();
+            return new Promise((res, rej) => {
+                const tx = db.transaction(MEDIA_STORE, mode), st = tx.objectStore(MEDIA_STORE);
+                let out; const r = fn(st);
+                if (r && 'onsuccess' in r) r.onsuccess = () => { out = r.result; };
+                tx.oncomplete = () => res(out); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+            });
+        }
+        const mediaPut = rec => mediaTx('readwrite', st => st.put(rec));
+        const mediaGet = id => mediaTx('readonly', st => st.get(id));
+        const mediaAll = () => mediaTx('readonly', st => st.getAll());
+        const mediaDeleteMany = ids => mediaTx('readwrite', st => { ids.forEach(id => st.delete(id)); }).catch(() => {});
+        const thumbUrls = new Map();   // 縮圖網址快取
+        function newMediaId() { return 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+        function fmtBytes(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+        function collectAttIds(o) {
+            const out = [...(o.attachments || [])];
+            (o.subtasks || []).forEach(s => out.push(...collectAttIds(s)));
+            (o.grandtasks || []).forEach(g => out.push(...(g.attachments || [])));
+            return out;
+        }
+        function allAttIds() { const out = []; tasks.forEach(t => out.push(...collectAttIds(t))); return out; }
+
+        function attTag(t, level, a = null, b = null) {
+            const n = (t.attachments || []).length;
+            if (!n) return '';
+            return `<span class="att-tag" title="附件" onclick="event.stopPropagation(); openAtt(${t.id}, '${level}'${a !== null ? ', ' + a : ''}${b !== null ? ', ' + b : ''})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l9.2-9.2a3.4 3.4 0 0 1 4.8 4.8l-9.2 9.2a1.7 1.7 0 0 1-2.4-2.4l8.5-8.5"/></svg>${n}</span>`;
+        }
+
+        // 判斷是不是截圖：PNG 檔、檔名有 screenshot／截圖，或是手機螢幕比例且寬度像螢幕
+        function looksLikeScreenshot(file, w, h) {
+            if (/screenshot|screen_?shot|螢幕|截圖|擷取|capture/i.test(file.name || '')) return true;
+            if (file.type === 'image/png') return true;
+            const ratio = Math.max(w, h) / Math.min(w, h);
+            return ratio >= 1.9 && Math.min(w, h) >= 600 && Math.min(w, h) <= 1600 && file.type !== 'image/jpeg';
+        }
+        const supportsWebp = (() => { try { return document.createElement('canvas').toDataURL('image/webp').startsWith('data:image/webp'); } catch (e) { return false; } })();
+        function canvasBlob(c, q) {
+            return new Promise(res => c.toBlob(b => res(b), supportsWebp ? 'image/webp' : 'image/jpeg', q));
+        }
+        async function loadBitmap(file) {
+            try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+            catch (e) {
+                return await new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = URL.createObjectURL(file); });
+            }
+        }
+        function drawScaled(src, w, h, maxW, maxH) {
+            const k = Math.min(1, maxW / w, maxH / h);
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);   // 透明的地方補白底
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(src, 0, 0, c.width, c.height);
+            return c;
+        }
+        async function processImage(file) {
+            const bmp = await loadBitmap(file);
+            const w = bmp.width, h = bmp.height;
+            const shot = looksLikeScreenshot(file, w, h);
+            // 截圖：不縮小（寬最多 1440，太長的截圖高度最多 8000），高畫質保留文字；照片：長邊 1600
+            const fc = shot ? drawScaled(bmp, w, h, 1440, 8000) : drawScaled(bmp, w, h, 1600, 1600);
+            const full = await canvasBlob(fc, shot ? 0.92 : 0.8);
+            const thumbC = drawScaled(bmp, w, h, 320, 320);
+            const thumb = await canvasBlob(thumbC, 0.75);
+            if (bmp.close) bmp.close();
+            return { id: newMediaId(), kind: shot ? 'screenshot' : 'photo', mime: full.type, blob: full, thumb, w: fc.width, h: fc.height, size: full.size + thumb.size, createdAt: Date.now(), name: file.name || '' };
+        }
+
+        // 附件視窗
+        let attTarget = null;
+        function attObj() { return attTarget ? getTarget(attTarget.id, attTarget.level, attTarget.parentId, attTarget.grandParentId) : null; }
+        function openAtt(id, level, parentId = null, grandParentId = null) {
+            attTarget = { id, level, parentId, grandParentId };
+            const t = attObj(); if (!t) return;
+            document.getElementById('atTask').textContent = t.text;
+            let path = LEVEL_NAME[level];
+            if (level === 'sub') { const m = findMain(parentId); if (m) path += ` · ${m.text}`; }
+            if (level === 'grand') { const m = findMain(grandParentId), sb = findSub(grandParentId, parentId); path += ` · ${m ? m.text : ''} › ${sb ? sb.text : ''}`; }
+            document.getElementById('atPath').textContent = path;
+            document.getElementById('attModal').style.display = 'flex';
+            renderAttGrid();
+        }
+        function closeAtt() { document.getElementById('attModal').style.display = 'none'; attTarget = null; }
+        async function thumbUrl(id) {
+            if (thumbUrls.has(id)) return thumbUrls.get(id);
+            const rec = await mediaGet(id).catch(() => null);
+            const url = rec ? URL.createObjectURL(rec.thumb || rec.blob) : null;
+            if (url) thumbUrls.set(id, url);
+            return url;
+        }
+        async function renderAttGrid() {
+            const t = attObj(); if (!t) return;
+            const ids = t.attachments || [];
+            const grid = document.getElementById('atGrid');
+            const cells = await Promise.all(ids.map(async (id, i) => {
+                const rec = await mediaGet(id).catch(() => null);
+                if (!rec) return `<div class="att-cell missing">照片不在這支手機<br>（只還原了文字）</div>`;
+                const url = await thumbUrl(id);
+                return `<div class="att-cell" onclick="openViewer(${i})"><img src="${url}" alt=""><span class="kind">${rec.kind === 'screenshot' ? '截圖' : '照片'}</span></div>`;
+            }));
+            const full = ids.length >= ATT_MAX_PER_TASK;
+            grid.innerHTML = cells.join('') + `<button class="att-add" onclick="pickAttFiles()" ${full ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>${full ? '已滿 5 張' : '加照片／截圖'}</button>`;
+            const recs = await Promise.all(ids.map(id => mediaGet(id).catch(() => null)));
+            const bytes = recs.reduce((a, r) => a + (r ? r.size : 0), 0);
+            document.getElementById('atInfo').textContent = ids.length
+                ? `${ids.length} 張，共 ${fmtBytes(bytes)}。點縮圖看大圖。每個任務最多 ${ATT_MAX_PER_TASK} 張。`
+                : '可以拍照，或從相簿選照片、截圖（可一次選多張）。照片會自動壓縮，截圖會保持清晰。';
+        }
+        function pickAttFiles() { const f = document.getElementById('attFile'); f.value = ''; f.click(); }
+        async function onAttFiles(e) {
+            const t = attObj(); if (!t) return;
+            const files = [...e.target.files].filter(f => f.type.startsWith('image/'));
+            if (!files.length) return;
+            const room = ATT_MAX_PER_TASK - (t.attachments || []).length;
+            if (files.length > room) showToast(`每個任務最多 ${ATT_MAX_PER_TASK} 張，只加入前 ${room} 張`, 2500);
+            const info = document.getElementById('atInfo');
+            let added = 0, bytes = 0;
+            for (const f of files.slice(0, Math.max(0, room))) {
+                info.textContent = `處理中…（${added + 1}／${Math.min(files.length, room)}）`;
+                try {
+                    const rec = await processImage(f);
+                    await mediaPut(rec);
+                    t.attachments = [...(t.attachments || []), rec.id];
+                    added++; bytes += rec.size;
+                } catch (err) { console.warn(err); showToast(`有一張圖片無法讀取（${f.name || '未命名'}）`, 2500); }
+            }
+            if (added) {
+                saveData();
+                try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e2) {}   // 請瀏覽器盡量保留照片
+                showToast(`✅ 已加入 ${added} 張（${fmtBytes(bytes)}）`, 1800);
+                warnIfBig();
+            }
+            renderAttGrid();
+        }
+        async function totalMediaBytes() {
+            const all = await mediaAll().catch(() => []);
+            return { count: all.length, bytes: all.reduce((a, r) => a + (r.size || 0), 0), all };
+        }
+        async function warnIfBig() {
+            const { bytes } = await totalMediaBytes();
+            if (bytes > ATT_WARN_BYTES) setTimeout(() => showToast(`照片已佔用 ${fmtBytes(bytes)}\n建議做一次完整備份，並刪除已完成任務的照片`, 4500), 1900);
+        }
+
+        // 看大圖
+        let viewerIdx = 0, viewerUrl = null;
+        async function openViewer(i) {
+            viewerIdx = i;
+            document.getElementById('viewer').classList.add('show');
+            await showViewerImage();
+        }
+        async function showViewerImage() {
+            const t = attObj(); if (!t) return closeViewer();
+            const ids = t.attachments || [];
+            if (!ids.length) return closeViewer();
+            viewerIdx = Math.max(0, Math.min(viewerIdx, ids.length - 1));
+            const rec = await mediaGet(ids[viewerIdx]).catch(() => null);
+            if (viewerUrl) URL.revokeObjectURL(viewerUrl);
+            viewerUrl = rec ? URL.createObjectURL(rec.blob) : null;
+            document.getElementById('vwImg').src = viewerUrl || '';
+            document.getElementById('vwStage').classList.remove('zoom');
+            document.getElementById('vwTitle').textContent = rec ? `${viewerIdx + 1}／${ids.length}・${rec.kind === 'screenshot' ? '截圖' : '照片'}・${fmtBytes(rec.blob.size)}・${formatTime(rec.createdAt)}` : '找不到這張照片';
+            document.getElementById('vwPrev').disabled = viewerIdx === 0;
+            document.getElementById('vwNext').disabled = viewerIdx >= ids.length - 1;
+        }
+        function stepViewer(d) { viewerIdx += d; showViewerImage(); }
+        function toggleZoom() { document.getElementById('vwStage').classList.toggle('zoom'); }
+        function closeViewer() { document.getElementById('viewer').classList.remove('show'); if (viewerUrl) { URL.revokeObjectURL(viewerUrl); viewerUrl = null; } renderAttGrid(); }
+        async function shareCurrent() {
+            const t = attObj(); if (!t) return;
+            const rec = await mediaGet((t.attachments || [])[viewerIdx]).catch(() => null); if (!rec) return;
+            const ext = rec.mime === 'image/webp' ? 'webp' : 'jpg';
+            const file = new File([rec.blob], `${t.text.slice(0, 20)}_${viewerIdx + 1}.${ext}`, { type: rec.mime });
+            try {
+                if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: t.text }); return; }
+            } catch (e) { if (e && e.name === 'AbortError') return; }
+            const url = URL.createObjectURL(file), a = document.createElement('a');
+            a.href = url; a.download = file.name; document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 3000);
+        }
+        async function deleteCurrent() {
+            const t = attObj(); if (!t) return;
+            if (!confirm('確定要刪除這張照片嗎？')) return;
+            const id = (t.attachments || [])[viewerIdx];
+            t.attachments = t.attachments.filter(x => x !== id);
+            if (!t.attachments.length) delete t.attachments;
+            await mediaDeleteMany([id]);
+            if (thumbUrls.has(id)) { URL.revokeObjectURL(thumbUrls.get(id)); thumbUrls.delete(id); }
+            saveData();
+            showToast('已刪除照片', 1500);
+            if (!(t.attachments || []).length) closeViewer(); else showViewerImage();
+        }
+
+        // 附件與完整備份
+        async function openStorage() { document.getElementById('storageModal').style.display = 'flex'; renderStorage(); }
+        function closeStorage() { document.getElementById('storageModal').style.display = 'none'; }
+        async function renderStorage() {
+            const body = document.getElementById('stBody');
+            const { count, bytes, all } = await totalMediaBytes();
+            const used = new Set(allAttIds());
+            const orphans = all.filter(r => !used.has(r.id));
+            const doneIds = []; allTasksFlat().forEach(({ t }) => { if (t.checked && t.attachments) doneIds.push(...t.attachments); });
+            const shots = all.filter(r => r.kind === 'screenshot').length;
+            let est = null; try { est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; } catch (e) {}
+            let persisted = false; try { persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false; } catch (e) {}
+            const pct = Math.min(100, bytes / ATT_WARN_BYTES * 100);
+            body.innerHTML = `
+                <div class="st-row"><b style="font-weight:600">照片／截圖</b><span>${count} 張（照片 ${count - shots}、截圖 ${shots}）</span></div>
+                <div class="st-row"><b style="font-weight:600">佔用空間</b><span>${fmtBytes(bytes)}${bytes > ATT_WARN_BYTES ? '（建議整理）' : ''}</span></div>
+                <div class="storage-bar"><i class="${bytes > ATT_WARN_BYTES ? 'warn' : ''}" style="width:${pct}%"></i></div>
+                <div class="att-info" style="margin-top:4px">建議在 ${fmtBytes(ATT_WARN_BYTES)} 以內${est && est.quota ? `；這支手機給本 App 的空間上限約 ${fmtBytes(est.quota)}` : ''}${persisted ? '；已設為「盡量保留」' : ''}</div>
+                <div class="st-row"><b style="font-weight:600">已完成任務的照片</b><span>${doneIds.length} 張</span></div>
+                <div class="st-row"><b style="font-weight:600">沒有任務在用的照片</b><span>${orphans.length} 張</span></div>
+                <div class="st-row"><b style="font-weight:600">完整備份預估大小</b><span>約 ${fmtBytes(Math.round(bytes * 1.37) + JSON.stringify(tasks).length)}</span></div>`;
+        }
+        async function cleanupDoneAttachments() {
+            const ids = []; const owners = [];
+            allTasksFlat().forEach(({ t }) => { if (t.checked && t.attachments && t.attachments.length) { ids.push(...t.attachments); owners.push(t); } });
+            if (!ids.length) return showToast('已完成的任務沒有照片', 1800);
+            if (!confirm(`要刪除 ${owners.length} 個已完成任務上的 ${ids.length} 張照片嗎？\n建議先做一次完整備份。`)) return;
+            owners.forEach(t => delete t.attachments);
+            await mediaDeleteMany(ids);
+            saveData(); renderStorage(); showToast(`已刪除 ${ids.length} 張照片`, 2000);
+        }
+        async function cleanupOrphans(ask) {
+            const used = new Set(allAttIds());
+            const { all } = await totalMediaBytes();
+            const orphans = all.filter(r => !used.has(r.id)).map(r => r.id);
+            if (!orphans.length) { if (ask) showToast('沒有需要清除的照片', 1800); return; }
+            if (ask && !confirm(`有 ${orphans.length} 張照片沒有任何任務在用，要刪除嗎？`)) return;
+            await mediaDeleteMany(orphans);
+            if (ask) { renderStorage(); showToast(`已清除 ${orphans.length} 張`, 1800); }
+        }
+        function blobToDataUrl(b) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); }); }
+        async function dataUrlToBlob(u) { return (await fetch(u)).blob(); }
+        async function fullBackup() {
+            if (tasks.length === 0) return showToast('目前沒有資料可以備份');
+            const used = new Set(allAttIds());
+            const recs = (await mediaAll().catch(() => [])).filter(r => used.has(r.id));
+            showToast(`正在打包 ${recs.length} 張照片…`, 2000);
+            const media = {};
+            for (const r of recs) media[r.id] = { kind: r.kind, mime: r.mime, w: r.w, h: r.h, createdAt: r.createdAt, data: await blobToDataUrl(r.blob), thumb: r.thumb ? await blobToDataUrl(r.thumb) : null };
+            const text = JSON.stringify({ format: 'worklog-full', version: 1, exportedAt: Date.now(), tasks, media });
+            const name = backupFileName('txt').replace('工作紀錄備份_', '工作紀錄完整備份_');
+            const file = new File([text], name, { type: 'text/plain' });
+            const msg = `✅ 完整備份 ${fmtBytes(file.size)}（含 ${recs.length} 張照片）`;
+            try {
+                if (canShareFiles() && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: '每日工作記錄表完整備份' });
+                    markBackedUp(); showToast(msg + '\n若選了「雲端硬碟」，檔案就在你的 Google Drive', 4000); return;
+                }
+            } catch (e) { if (e && e.name === 'AbortError') return; }
+            const url = URL.createObjectURL(file), a = document.createElement('a');
+            a.href = url; a.download = name; document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 3000);
+            markBackedUp(); showToast(msg + '\n已下載到手機', 3500);
+        }
+        async function restoreFullBackup(data) {
+            const ids = Object.keys(data.media || {});
+            showToast(`正在還原 ${ids.length} 張照片…`, 2500);
+            let ok = 0;
+            for (const id of ids) {
+                const m = data.media[id];
+                try {
+                    const blob = await dataUrlToBlob(m.data), thumb = m.thumb ? await dataUrlToBlob(m.thumb) : null;
+                    await mediaPut({ id, kind: m.kind, mime: m.mime || blob.type, blob, thumb, w: m.w, h: m.h, size: blob.size + (thumb ? thumb.size : 0), createdAt: m.createdAt || Date.now() });
+                    ok++;
+                } catch (e) { console.warn(e); }
+            }
+            const fresh = normalizeTasks(data.tasks).map(t => ({
+                ...t, id: newId(),
+                subtasks: t.subtasks.map(s => ({ ...s, id: newId(), grandtasks: s.grandtasks.map(g => ({ ...g, id: newId() })) }))
+            }));
+            if (tasks.length > 0 && confirm('要保留原本的資料並合併匯入嗎？\n\n按「確定」合併資料\n按「取消」則完全覆蓋目前資料')) tasks = tasks.concat(fresh);
+            else tasks = fresh;
+            saveData();
+            cleanupOrphans(false);
+            const c = countAll();
+            showToast(`✅ 完整還原成功！${c.mains} 個主任務、${c.subs} 個次任務、${c.grands} 個孫任務、${ok} 張照片`, 4000);
+        }
+
         // ---- 修改任務（v2.14）：自己的視窗，可以一併修改時間和註記 ----
         let editTarget = null;
         function editObj() { return editTarget ? getTarget(editTarget.id, editTarget.level, editTarget.parentId, editTarget.grandParentId) : null; }
@@ -1836,6 +2225,9 @@
             const d = document.getElementById('emDue');
             d.className = 'em-tool' + (t.dueAt ? ' on ' + dueState(t) : '');
             d.querySelector('span').textContent = t.dueAt ? `${dueState(t) === 'overdue' ? '已過 ' : ''}${fmtDue(t.dueAt)}・${LEAD_TEXT[t.remindLead || 0]}` : '設定時間';
+            const at = document.getElementById('emAtt'), na = (t.attachments || []).length;
+            at.className = 'em-tool' + (na ? ' on' : '');
+            at.querySelector('span').textContent = na ? `附件 ${na}` : '加照片';
             const n = document.getElementById('emNote');
             n.className = 'em-tool' + (t.note ? ' on' : '');
             n.querySelector('span').textContent = t.note ? '看註記' : '加註記';
@@ -1850,6 +2242,11 @@
             commitEditText();
             const e = editTarget; closeEdit();
             openDue(e.id, e.level, e.parentId, e.grandParentId);
+        }
+        function editOpenAtt() {
+            commitEditText();
+            const e = editTarget; closeEdit();
+            openAtt(e.id, e.level, e.parentId, e.grandParentId);
         }
         function editOpenNote() {
             commitEditText();
@@ -1929,7 +2326,10 @@
             let extra = '';
             if (level === 'main' && target.subtasks.length) extra = `\n（底下的 ${target.subtasks.length} 個次任務也會一起刪除）`;
             if (level === 'sub' && target.grandtasks.length) extra = `\n（底下的 ${target.grandtasks.length} 個孫任務也會一起刪除）`;
+            const attIds = collectAttIds(target);
+            if (attIds.length) extra += `\n（附加的 ${attIds.length} 張照片也會一起刪除）`;
             if (!confirm(`確定要刪除「${target.text}」嗎？${extra}`)) return;
+            if (attIds.length) mediaDeleteMany(attIds);
             if (level === 'main') tasks = tasks.filter(t => t.id !== id);
             else if (level === 'sub') { const p = findMain(parentId); if (p) { p.subtasks = p.subtasks.filter(s => s.id !== id); clearReopened(p); } }
             else if (level === 'grand') { const p = findSub(grandParentId, parentId); if (p) { p.grandtasks = p.grandtasks.filter(g => g.id !== id); clearReopened(p); clearReopened(findMain(grandParentId)); } }
@@ -2159,7 +2559,7 @@
                         ${toggle}
                         <input type="checkbox" class="${!task.checked && pendingChildren(task, 'main') ? 'locked' : ''}" ${task.checked ? 'checked' : ''} onchange="toggleCheck(${task.id}, 'main')" title="${!task.checked && pendingChildren(task, 'main') ? '還有未完成的子任務' : ''}">
                         <div class="task-text main-task-text ${task.checked ? 'completed' : ''}" onclick="editTask(${task.id}, 'main')" title="點一下修改文字">
-                            ${escapeHtml(task.text)}${progressTag(task.subtasks)}${dueTag(task, 'main')} ${getTimeBadgeHtml(task)}
+                            ${escapeHtml(task.text)}${progressTag(task.subtasks)}${dueTag(task, 'main')}${attTag(task, 'main')} ${getTimeBadgeHtml(task)}
                         </div>
                         <div class="row-actions">
 <button class="action-btn btn-time ${task.dueAt ? 'has-due' : ''}" title="設定時間提醒" onclick="openDue(${task.id}, 'main')">${ICON.clock}</button>
@@ -2182,7 +2582,7 @@
                                 ${subToggle}
                                 <input type="checkbox" class="${!sub.checked && pendingChildren(sub, 'sub') ? 'locked' : ''}" ${sub.checked ? 'checked' : ''} onchange="toggleCheck(${sub.id}, 'sub', ${task.id})" title="${!sub.checked && pendingChildren(sub, 'sub') ? '還有未完成的孫任務' : ''}">
                                 <div class="task-text sub-task-text ${sub.checked ? 'completed' : ''}" onclick="editTask(${sub.id}, 'sub', ${task.id})" title="點一下修改文字">
-                                    ${escapeHtml(sub.text)}${progressTag(sub.grandtasks)}${dueTag(sub, 'sub', task.id)} ${getTimeBadgeHtml(sub)}
+                                    ${escapeHtml(sub.text)}${progressTag(sub.grandtasks)}${dueTag(sub, 'sub', task.id)}${attTag(sub, 'sub', task.id)} ${getTimeBadgeHtml(sub)}
                                 </div>
                                 <div class="row-actions">
 <button class="action-btn btn-time ${sub.dueAt ? 'has-due' : ''}" title="設定時間提醒" onclick="openDue(${sub.id}, 'sub', ${task.id})">${ICON.clock}</button>
@@ -2199,7 +2599,7 @@
                                     <div class="drag-handle grand-handle">☰</div>
                                     <input type="checkbox" ${g.checked ? 'checked' : ''} onchange="toggleCheck(${g.id}, 'grand', ${sub.id}, ${task.id})">
                                     <div class="task-text grand-task-text ${g.checked ? 'completed' : ''}" onclick="editTask(${g.id}, 'grand', ${sub.id}, ${task.id})" title="點一下修改文字">
-                                        ${escapeHtml(g.text)}${dueTag(g, 'grand', sub.id, task.id)} ${getTimeBadgeHtml(g)}
+                                        ${escapeHtml(g.text)}${dueTag(g, 'grand', sub.id, task.id)}${attTag(g, 'grand', sub.id, task.id)} ${getTimeBadgeHtml(g)}
                                     </div>
                                     <div class="row-actions">
 <button class="action-btn btn-time ${g.dueAt ? 'has-due' : ''}" title="設定時間提醒" onclick="openDue(${g.id}, 'grand', ${sub.id}, ${task.id})">${ICON.clock}</button>
